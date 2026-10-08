@@ -1,0 +1,695 @@
+// Nigerian Career & Remote Job Platform — V1 schema
+// Money is stored as integer kobo (₦6,000 = 600000) to avoid float errors.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  RECEIVED
+  IN_REVIEW
+  PROCESSING
+  COMPLETED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  ABANDONED
+  REFUNDED
+}
+
+enum DeliverableType {
+  PDF
+  DOCX
+}
+
+enum JobStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  REJECTED
+  EXPIRED
+}
+
+enum JobSource {
+  ADMIN
+  EMPLOYER_SUBMISSION
+}
+
+enum WorkMode {
+  REMOTE
+  HYBRID
+  ONSITE
+}
+
+// Kept separate from WorkMode on purpose: "Remote" never implies Nigeria-eligible.
+enum NigeriaEligibility {
+  UNVERIFIED // default — UI must not claim eligibility
+  VERIFIED // admin confirmed Nigerian applicants are accepted
+  NOT_ELIGIBLE
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERNSHIP
+}
+
+enum ExperienceLevel {
+  ENTRY
+  MID
+  SENIOR
+}
+
+enum SalaryPeriod {
+  HOURLY
+  MONTHLY
+  YEARLY
+}
+
+enum SubmissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ReportReason {
+  SUSPECTED_SCAM
+  ASKS_FOR_PAYMENT
+  MISLEADING_DETAILS
+  NOT_NIGERIA_ELIGIBLE
+  EXPIRED_OR_FILLED
+  BROKEN_LINK
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  ACTIONED
+  DISMISSED
+}
+
+enum ApplicationStatus {
+  SAVED
+  APPLIED
+  INTERVIEW
+  OFFER
+  REJECTED
+  WITHDRAWN
+}
+
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PublishStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum GuideCategory {
+  RESUME
+  INTERVIEWS
+  REMOTE_JOBS
+  LINKEDIN
+  COVER_LETTERS
+  SALARY_NEGOTIATION
+  PORTFOLIO
+  CAREER_DEVELOPMENT
+  SCAM_AWARENESS
+}
+
+enum PaymentEventSource {
+  INITIALIZE
+  WEBHOOK
+  VERIFY
+  ADMIN
+}
+
+enum NotificationType {
+  ORDER_UPDATE
+  PAYMENT
+  JOB_ALERT
+  SUBMISSION_UPDATE
+  SYSTEM
+}
+
+// ─────────────────────────────────────────────
+// Auth (Auth.js / NextAuth v5 + Prisma adapter)
+// ─────────────────────────────────────────────
+
+model User {
+  id                  String           @id @default(cuid())
+  name                String?
+  email               String           @unique
+  emailVerified       DateTime?
+  passwordHash        String?
+  image               String?
+  role                Role             @default(USER)
+  phone               String?
+  headline            String?
+  location            String?
+  targetRole          String?
+  experienceLevel     ExperienceLevel?
+  linkedinUrl         String?
+  portfolioUrl        String?
+  preferredCategories JobCategory[]    @relation("UserPreferredCategories")
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  accounts             Account[]
+  sessions             Session[]
+  resumes              Resume[]
+  orders               ResumeOrder[]        @relation("OrderCustomer")
+  assignedOrders       ResumeOrder[]        @relation("OrderAssignee")
+  payments             Payment[]
+  savedJobs            SavedJob[]
+  applications         Application[]
+  notifications        Notification[]
+  jobReports           JobReport[]
+  testimonials         Testimonial[]
+  successStories       SuccessStory[]       @relation("StorySubject")
+  articles             Article[]
+  auditLogs            AuditLog[]
+  jobsCreated          Job[]                @relation("JobCreatedBy")
+  jobsVerified         Job[]                @relation("JobVerifiedBy")
+  submissionsReviewed  EmployerSubmission[]
+  statusChanges        OrderStatusHistory[]
+  deliverablesUploaded OrderDeliverable[]
+  passwordResetTokens  PasswordResetToken[]
+
+  @@index([role])
+  @@index([createdAt])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expires   DateTime
+  usedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────
+// Resume optimization
+// ─────────────────────────────────────────────
+
+// A resume file the user uploaded (private storage; served via signed URLs).
+model Resume {
+  id        String   @id @default(cuid())
+  userId    String
+  fileKey   String // storage object path
+  fileName  String
+  mimeType  String
+  sizeBytes Int
+  createdAt DateTime @default(now())
+
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders ResumeOrder[]
+
+  @@index([userId])
+}
+
+model ResumeOrder {
+  id                     String           @id @default(cuid())
+  orderNumber            String           @unique // human-friendly, e.g. RO-2026-00042
+  userId                 String
+  resumeId               String
+  targetRole             String
+  targetIndustry         String?
+  experienceLevel        ExperienceLevel?
+  customerNotes          String?          @db.Text
+  termsAcceptedAt        DateTime // customer accepted service terms + no-guarantee disclaimer
+  status                 OrderStatus      @default(PENDING_PAYMENT)
+  amountKobo             Int // price snapshot at order time
+  currency               String           @default("NGN")
+  paidAt                 DateTime?
+  assignedToId           String?
+  internalNotes          String?          @db.Text // admin-only
+  profileRecommendations String?          @db.Text // LinkedIn/profile advice delivered to customer
+  deliveredAt            DateTime?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+
+  user          User                 @relation("OrderCustomer", fields: [userId], references: [id])
+  resume        Resume               @relation(fields: [resumeId], references: [id])
+  assignedTo    User?                @relation("OrderAssignee", fields: [assignedToId], references: [id])
+  payments      Payment[]
+  deliverables  OrderDeliverable[]
+  statusHistory OrderStatusHistory[]
+  testimonial   Testimonial?
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model OrderDeliverable {
+  id           String          @id @default(cuid())
+  orderId      String
+  type         DeliverableType
+  fileKey      String
+  fileName     String
+  version      Int             @default(1)
+  uploadedById String
+  createdAt    DateTime        @default(now())
+
+  order      ResumeOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  uploadedBy User        @relation(fields: [uploadedById], references: [id])
+
+  @@index([orderId])
+}
+
+model OrderStatusHistory {
+  id          String       @id @default(cuid())
+  orderId     String
+  fromStatus  OrderStatus?
+  toStatus    OrderStatus
+  note        String?
+  changedById String? // null = system (e.g. payment webhook)
+  createdAt   DateTime     @default(now())
+
+  order     ResumeOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  changedBy User?       @relation(fields: [changedById], references: [id])
+
+  @@index([orderId])
+}
+
+// Written only by server code after Paystack verification (webhook or verify API).
+model Payment {
+  id              String        @id @default(cuid())
+  userId          String
+  orderId         String
+  reference       String        @unique // our reference, sent to Paystack
+  amountKobo      Int
+  currency        String        @default("NGN")
+  status          PaymentStatus @default(PENDING)
+  paystackId      String?       @unique
+  channel         String?
+  gatewayResponse String?
+  paidAt          DateTime?
+  verifiedAt      DateTime?
+  rawVerification Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  user   User           @relation(fields: [userId], references: [id])
+  order  ResumeOrder    @relation(fields: [orderId], references: [id])
+  events PaymentEvent[]
+
+  @@index([orderId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Append-only log of everything we heard about a payment (initialize, webhook, verify).
+model PaymentEvent {
+  id        String             @id @default(cuid())
+  paymentId String?
+  reference String
+  source    PaymentEventSource
+  event     String // e.g. "charge.success", "verify.success", "verify.amount_mismatch"
+  payload   Json?
+  createdAt DateTime           @default(now())
+
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([reference])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────
+// Job board
+// ─────────────────────────────────────────────
+
+model JobCategory {
+  id        String @id @default(cuid())
+  name      String @unique
+  slug      String @unique
+  sortOrder Int    @default(0)
+
+  jobs       Job[]
+  interested User[] @relation("UserPreferredCategories")
+}
+
+model Job {
+  id                      String             @id @default(cuid())
+  slug                    String             @unique
+  title                   String
+  companyName             String
+  companyWebsite          String?
+  companyLogoUrl          String?
+  description             String             @db.Text // markdown, rendered without raw HTML
+  responsibilities        String?            @db.Text
+  requirements            String?            @db.Text
+  applicationInstructions String?            @db.Text
+  categoryId              String
+  workMode                WorkMode
+  locationEligibility     String // e.g. "Worldwide", "EMEA", "Nigeria only"
+  nigeriaEligibility      NigeriaEligibility @default(UNVERIFIED)
+  eligibilityNote         String? // how eligibility was verified
+  employmentType          EmploymentType
+  experienceLevel         ExperienceLevel
+  salaryMin               Int?
+  salaryMax               Int?
+  salaryCurrency          String?
+  salaryPeriod            SalaryPeriod?
+  applyUrl                String
+  postedAt                DateTime? // set on publish
+  closingDate             DateTime?
+  status                  JobStatus          @default(DRAFT)
+  isFeatured              Boolean            @default(false)
+  isSponsored             Boolean            @default(false) // must be labelled in UI
+  featuredUntil           DateTime?
+  source                  JobSource          @default(ADMIN)
+  isDemo                  Boolean            @default(false) // development sample; always labelled
+  companyVerified         Boolean            @default(false) // admin checked the employer is real
+  companyVerificationNote String?
+  verifiedAt              DateTime?
+  verifiedById            String?
+  createdById             String?
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+
+  category     JobCategory         @relation(fields: [categoryId], references: [id])
+  verifiedBy   User?               @relation("JobVerifiedBy", fields: [verifiedById], references: [id])
+  createdBy    User?               @relation("JobCreatedBy", fields: [createdById], references: [id])
+  submission   EmployerSubmission?
+  savedBy      SavedJob[]
+  reports      JobReport[]
+  applications Application[]
+  applyClicks  JobApplyClick[]
+
+  @@index([status, postedAt])
+  @@index([status, isFeatured])
+  @@index([categoryId])
+  @@index([workMode])
+  @@index([nigeriaEligibility])
+  @@index([experienceLevel])
+  @@index([employmentType])
+  @@index([closingDate])
+}
+
+model EmployerSubmission {
+  id               String           @id @default(cuid())
+  companyName      String
+  companyWebsite   String
+  recruiterName    String
+  recruiterEmail   String
+  jobTitle         String
+  jobDescription   String           @db.Text
+  responsibilities String?          @db.Text
+  requirements     String?          @db.Text
+  experienceLevel  ExperienceLevel?
+  salary           String? // free text from employer; admin normalises on approval
+  location         String
+  workMode         WorkMode
+  employmentType   EmploymentType
+  applyUrl         String
+  closingDate      DateTime?
+  status           SubmissionStatus @default(PENDING)
+  reviewNote       String?
+  reviewedById     String?
+  reviewedAt       DateTime?
+  jobId            String?          @unique // Job created on approval
+  submitterIp      String? // spam/rate-limit forensics
+  createdAt        DateTime         @default(now())
+
+  reviewedBy User? @relation(fields: [reviewedById], references: [id])
+  job        Job?  @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+}
+
+model JobReport {
+  id            String       @id @default(cuid())
+  jobId         String
+  userId        String?
+  reporterEmail String?
+  reason        ReportReason
+  details       String?      @db.Text
+  status        ReportStatus @default(OPEN)
+  resolvedAt    DateTime?
+  createdAt     DateTime     @default(now())
+
+  job  Job   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([status])
+  @@index([jobId])
+}
+
+model SavedJob {
+  userId    String
+  jobId     String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@id([userId, jobId])
+}
+
+// User's own application tracker (jobs on the board or external ones).
+model Application {
+  id          String            @id @default(cuid())
+  userId      String
+  jobId       String?
+  jobTitle    String
+  companyName String
+  applyUrl    String?
+  status      ApplicationStatus @default(SAVED)
+  appliedAt   DateTime?
+  notes       String?           @db.Text
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job  Job? @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
+
+// Lightweight first-party analytics for outbound "Apply" clicks.
+model JobApplyClick {
+  id        String   @id @default(cuid())
+  jobId     String
+  userId    String?
+  createdAt DateTime @default(now())
+
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, createdAt])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────
+// Social proof (real customers only)
+// ─────────────────────────────────────────────
+
+model Testimonial {
+  id               String           @id @default(cuid())
+  userId           String?
+  orderId          String?          @unique // ties a testimonial to a real delivered order
+  name             String
+  jobTitle         String?
+  company          String?
+  imageUrl         String?
+  content          String           @db.Text
+  date             DateTime         @default(now())
+  consentToPublish Boolean          @default(false)
+  isVerified       Boolean          @default(false)
+  isFeatured       Boolean          @default(false)
+  status           ModerationStatus @default(PENDING)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  user  User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  order ResumeOrder? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([status, isFeatured])
+}
+
+model SuccessStory {
+  id                String           @id @default(cuid())
+  slug              String           @unique
+  userId            String?
+  candidateName     String
+  candidateImageUrl String?
+  previousSituation String           @db.Text
+  serviceUsed       String
+  careerField       String
+  targetRole        String
+  improvements      String           @db.Text // what was improved (resume, profile, interview prep)
+  journey           String           @db.Text
+  outcome           String           @db.Text
+  newRole           String?
+  company           String?
+  testimonial       String?          @db.Text
+  consentToPublish  Boolean          @default(false)
+  isVerified        Boolean          @default(false)
+  verificationNote  String? // how the outcome was confirmed (admin-only)
+  isFeatured        Boolean          @default(false)
+  status            ModerationStatus @default(PENDING)
+  publishedAt       DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  user User? @relation("StorySubject", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status, isFeatured])
+}
+
+// ─────────────────────────────────────────────
+// Career guides CMS
+// ─────────────────────────────────────────────
+
+model Article {
+  id             String        @id @default(cuid())
+  slug           String        @unique
+  title          String
+  excerpt        String
+  content        String        @db.Text // markdown
+  category       GuideCategory
+  coverImageUrl  String?
+  seoTitle       String?
+  seoDescription String?
+  status         PublishStatus @default(DRAFT)
+  publishedAt    DateTime?
+  authorId       String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  author User @relation(fields: [authorId], references: [id])
+
+  @@index([status, publishedAt])
+  @@index([category])
+}
+
+// ─────────────────────────────────────────────
+// Platform
+// ─────────────────────────────────────────────
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}
+
+// Key/value settings editable from admin (e.g. resume_price_kobo, support_email).
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String // e.g. "job.approve", "order.status", "testimonial.feature"
+  entityType String
+  entityId   String
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+// First-party, replaceable analytics sink (see src/server/analytics.ts).
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  name      String // e.g. "job_view", "resume_cta_click"
+  path      String?
+  userId    String?
+  jobId     String?
+  props     Json?
+  createdAt DateTime @default(now())
+
+  @@index([name, createdAt])
+  @@index([jobId, name])
+}
+
+// Fixed-window counters for DB-backed rate limiting (works on serverless without Redis).
+model RateLimit {
+  key       String   @id // "<bucket>:<identifier>:<windowStart>"
+  count     Int      @default(0)
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}

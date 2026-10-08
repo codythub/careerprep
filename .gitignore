@@ -1,0 +1,32 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+/build
+next-env.d.ts
+*.tsbuildinfo
+
+# env files — never commit secrets. Only .env.example is tracked.
+.env
+.env.*
+!.env.example
+
+# local development data (embedded Postgres, local file storage, dev emails)
+/.local-db/
+/.local-storage/
+/.test-db/
+
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
+
+# vercel
+.vercel

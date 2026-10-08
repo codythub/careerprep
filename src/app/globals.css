@@ -1,0 +1,74 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+/*
+ * Design tokens. One strong brand colour (deep green), neutral slate surfaces.
+ * Change the brand palette here to rebrand.
+ */
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-brand-50: #eef8f2;
+  --color-brand-100: #d5eee0;
+  --color-brand-200: #aedcc4;
+  --color-brand-300: #7cc3a2;
+  --color-brand-400: #4aa57d;
+  --color-brand-500: #2a8a62;
+  --color-brand-600: #1b6f4d;
+  --color-brand-700: #0b5d3b;
+  --color-brand-800: #0a4a31;
+  --color-brand-900: #083d29;
+  --color-brand-950: #042217;
+
+  --color-accent-50: #fff8eb;
+  --color-accent-100: #feecc7;
+  --color-accent-600: #b45309;
+  --color-accent-700: #92400e;
+
+  /* Card outline + drop shadow */
+  --color-line: #d9dfe7;
+  --shadow-card: 0 1px 0 0 rgb(11 18 32 / 0.04), 0 12px 28px -16px rgb(11 18 32 / 0.28);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-white text-slate-900 antialiased;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply tracking-tight text-slate-950;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-600;
+  }
+  ::selection {
+    @apply bg-brand-100 text-brand-900;
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
+  }
+  .prose-content {
+    @apply prose prose-slate max-w-none prose-headings:tracking-tight prose-a:text-brand-700 prose-a:underline-offset-2 prose-li:my-0.5;
+  }
+
+  /* Cards: thicker outline + soft drop shadow, used everywhere */
+  .card {
+    @apply rounded-xl border-2 border-line bg-white;
+    box-shadow: var(--shadow-card);
+  }
+  .card-hover {
+    @apply transition-colors;
+  }
+  .card-hover:hover {
+    @apply border-slate-300;
+  }
+}
