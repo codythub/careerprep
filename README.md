@@ -26,6 +26,12 @@ for report downloads), and send Paystack back to `<site>/dashboard/payments/call
 The Prisma/Next.js backend remains only for the **legacy** public content (jobs, guides, stories)
 and the legacy admin panel (`/admin`, sign in at `/admin/login`).
 
+## Deploying
+
+The repo is connected to the Vercel project `careerprep-ng`: every push to `main` deploys to production
+(https://careerprep-ng.vercel.app); pushes to other branches get preview URLs. Environment variables
+(e.g. `NEXT_PUBLIC_API_URL`) live in Vercel and are not in this repo — changing one needs a new deploy.
+
 ## Run locally
 
 Requirements: Node.js 20.9+ (Node 22 recommended). No Docker or Postgres install is needed.
