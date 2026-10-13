@@ -107,6 +107,12 @@ export function UploadResume({ onUploaded }: { onUploaded?: () => void }) {
           )}
         </Alert>
       )}
+      {state.kind === "done" && state.resume?.extractionStatus === "failed" && (
+        <Alert tone="warning" title="We couldn't read the text in this PDF">
+          {state.resume.extractionError ?? "The assessment needs selectable text."} A review of it would fail. Upload a text-based PDF
+          (not a scan or image) instead.
+        </Alert>
+      )}
     </div>
   );
 }

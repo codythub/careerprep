@@ -83,69 +83,82 @@ export function toPage<T>(body: unknown, map: (raw: unknown) => T | null): Page<
 
 // ── Resumes ─────────────────────────────────────────────────────────────────
 
+export type ExtractionStatus = "pending" | "succeeded" | "failed";
+
 export type Resume = {
   id: string;
   fileName: string;
   sizeBytes: number | null;
   mimeType: string | null;
   uploadedAt: string | null;
-  status: string | null;
+  /** Whether Laravel could read the PDF's text. A review of a `failed` resume will fail too. */
+  extractionStatus: ExtractionStatus | null;
+  extractionError: string | null;
 };
+
+const EXTRACTION_STATUSES = new Set<string>(["pending", "succeeded", "failed"]);
 
 export function toResume(raw: unknown): Resume | null {
   const o = unwrap(raw);
   if (!isObj(o)) return null;
   const id = str(o.id);
   if (!id) return null;
+  const extraction = str(o.extraction_status);
   return {
     id,
     fileName: str(pick(o, "original_name", "original_filename", "file_name", "filename", "name")) ?? `Resume ${id}`,
     sizeBytes: num(pick(o, "size", "size_bytes", "file_size")),
     mimeType: str(pick(o, "mime_type", "mime")),
     uploadedAt: str(pick(o, "uploaded_at", "created_at")),
-    status: str(o.status),
+    extractionStatus: extraction && EXTRACTION_STATUSES.has(extraction) ? (extraction as ExtractionStatus) : null,
+    extractionError: str(o.extraction_error),
   };
 }
 
 // ── Payments ────────────────────────────────────────────────────────────────
 
-export type PaymentInit = { paymentId: number; authorizationUrl: string };
+export type PaymentStatus = "pending" | "initialized" | "verified" | "failed" | "unknown";
+/** available = verified and unused · consumed = a review was created · unavailable = not verified. */
+export type EntitlementStatus = "available" | "consumed" | "unavailable" | "unknown";
 
-/**
- * Response of POST /payments: `data.id` (needed for POST /payments/{payment}/verify) and
- * `data.authorization_url` (Paystack checkout). Both are required.
- */
-export function toPaymentInit(body: unknown): PaymentInit | null {
-  const d = isObj(body) && isObj(body.data) ? body.data : null;
-  if (!d) return null;
-  const paymentId = num(d.id);
-  const url = str(d.authorization_url);
-  if (paymentId === null || !url || !/^https:\/\//.test(url)) return null;
-  return { paymentId, authorizationUrl: url };
-}
-
-export type PaymentVerification = {
-  verified: boolean;
-  status: string | null;
-  reference: string | null;
+export type Payment = {
+  id: number;
   resumeId: string | null;
-  message: string | null;
+  reference: string | null;
+  /** Smallest currency unit (kobo for NGN), as set by Laravel. */
+  amount: number | null;
+  currency: string | null;
+  status: PaymentStatus;
+  authorizationUrl: string | null;
+  entitlementStatus: EntitlementStatus;
+  reviewId: string | null;
+  verifiedAt: string | null;
+  createdAt: string | null;
 };
 
-const VERIFIED_STATUSES = new Set(["success", "successful", "verified", "paid", "completed"]);
+const oneOf = <T extends string>(v: unknown, allowed: readonly T[]): T | "unknown" =>
+  typeof v === "string" && (allowed as readonly string[]).includes(v) ? (v as T) : "unknown";
 
-export function toPaymentVerification(body: unknown): PaymentVerification {
-  const top = isObj(body) ? body : {};
-  const o = unwrap(body);
-  const p = isObj(o) ? (isObj(o.payment) ? o.payment : o) : {};
-  const status = str(pick(p, "status", "payment_status"));
-  const verified = p.verified === true || p.paid === true || (status !== null && VERIFIED_STATUSES.has(status.toLowerCase()));
+/** Payment resource: `{ data: Payment }` or a list item. */
+export function toPayment(raw: unknown): Payment | null {
+  const o = unwrap(raw);
+  if (!isObj(o)) return null;
+  const id = num(o.id);
+  if (id === null) return null;
+  const url = str(o.authorization_url);
   return {
-    verified,
-    status,
-    reference: str(pick(p, "reference")),
-    resumeId: str(pick(p, "resume_id", "resumeId")),
-    message: str(pick(top, "message")),
+    id,
+    resumeId: str(o.resume_id),
+    reference: str(o.reference),
+    amount: num(o.amount),
+    currency: str(o.currency),
+    status: oneOf(o.status, ["pending", "initialized", "verified", "failed"] as const),
+    // Only ever navigate to an https Paystack checkout URL.
+    authorizationUrl: url && /^https:\/\//.test(url) ? url : null,
+    entitlementStatus: oneOf(o.entitlement_status, ["available", "consumed", "unavailable"] as const),
+    reviewId: str(o.review_id),
+    verifiedAt: str(o.verified_at),
+    createdAt: str(o.created_at),
   };
 }
 
@@ -170,6 +183,8 @@ export type Review = {
   createdAt: string | null;
   completedAt: string | null;
   failureReason: string | null;
+  /** Laravel's own disclaimer text for the assessment, when sent. */
+  disclaimer: string | null;
 };
 
 function toFindings(v: unknown): Finding[] {
@@ -237,5 +252,6 @@ export function toReview(raw: unknown): Review | null {
     createdAt: str(pick(o, "created_at", "submitted_at")),
     completedAt: str(pick(o, "completed_at", "processed_at")),
     failureReason: str(pick(o, "failure_reason", "error", "error_message")),
+    disclaimer: str(o.disclaimer),
   };
 }

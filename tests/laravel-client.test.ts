@@ -5,7 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, laravel } from "@/lib/laravel/client";
 import { api, uploadResume } from "@/lib/laravel/api";
-import { toCandidate, toPage, toPaymentVerification, toResume, toReview } from "@/lib/laravel/types";
+import { toCandidate, toPage, toPayment, toResume, toReview } from "@/lib/laravel/types";
 
 const BASE = "https://api.test/api/v1";
 
@@ -196,10 +196,28 @@ describe("resumes", () => {
   });
 });
 
+/** Payment resource exactly as docs/FRONTEND_API.md (Laravel) documents it. */
+const payment = (over: Record<string, unknown> = {}) => ({
+  id: 42,
+  resume_id: 3,
+  reference: "CP-01J",
+  amount: 500000,
+  currency: "NGN",
+  status: "initialized",
+  authorization_url: "https://checkout.paystack.com/xyz",
+  access_code: "ac",
+  entitlement_status: "unavailable",
+  review_id: null,
+  verified_at: null,
+  created_at: "2026-10-13T10:00:00Z",
+  ...over,
+});
+
 describe("payments", () => {
   it("POST /payments with ONLY { resume_id: number } and returns data.id + authorization_url", async () => {
-    const m = mockFetch(json({ data: { id: 42, authorization_url: "https://checkout.paystack.com/xyz", reference: "R1" } }, 201));
-    expect(await api.createPayment("t", "1")).toEqual({ paymentId: 42, authorizationUrl: "https://checkout.paystack.com/xyz" });
+    const m = mockFetch(json({ data: payment() }, 201));
+    const p = await api.createPayment("t", "1");
+    expect([p.id, p.authorizationUrl, p.status]).toEqual([42, "https://checkout.paystack.com/xyz", "initialized"]);
     const r = sent(m);
     expect([r.method, r.url]).toEqual(["POST", `${BASE}/payments`]);
     // No reference, amount, currency, status or callback URL from the frontend.
@@ -209,16 +227,43 @@ describe("payments", () => {
   it("rejects responses without a payment ID or with a non-https checkout URL", async () => {
     mockFetch(json({ data: { authorization_url: "https://checkout.paystack.com/xyz" } }));
     await expect(api.createPayment("t", 1)).rejects.toBeInstanceOf(ApiError);
-    mockFetch(json({ data: { id: 1, authorization_url: "javascript:alert(1)" } }));
+    mockFetch(json({ data: payment({ authorization_url: "javascript:alert(1)" }) }));
     await expect(api.createPayment("t", 1)).rejects.toBeInstanceOf(ApiError);
   });
 
   it("verifies with POST /payments/{payment}/verify and no body (there is no GET verify)", async () => {
-    const m = mockFetch(json({ data: { id: 42, status: "success", reference: "R1" } }));
+    const m = mockFetch(json({ data: payment({ status: "verified", entitlement_status: "available" }) }));
     const v = await api.verifyPayment("t", 42);
-    expect(v.verified).toBe(true);
+    expect([v.status, v.entitlementStatus]).toEqual(["verified", "available"]);
     const r = sent(m);
     expect([r.method, r.url, r.body]).toEqual(["POST", `${BASE}/payments/42/verify`, undefined]);
+  });
+
+  it("surfaces Laravel's 422 when Paystack did not confirm the payment", async () => {
+    mockFetch(json({ message: "Not verified.", errors: { payment: ["The transaction could not be verified for the expected amount and currency."] } }, 422));
+    const err = await failure(api.verifyPayment("t", 42));
+    expect(err.status).toBe(422);
+    expect(err.fieldErrors.payment?.[0]).toContain("could not be verified");
+  });
+
+  it("finds the candidate's payment with GET /payments?reference=", async () => {
+    const m = mockFetch(json({ data: [payment()], links: {}, meta: { current_page: 1, last_page: 1, per_page: 15, total: 1 } }));
+    expect((await api.findPaymentByReference("t", "CP-01J"))?.id).toBe(42);
+    expect(sent(m).url).toBe(`${BASE}/payments?reference=CP-01J`);
+    mockFetch(json({ data: [], links: {}, meta: { current_page: 1, last_page: 1, per_page: 15, total: 0 } }));
+    expect(await api.findPaymentByReference("t", "CP-OTHER")).toBeNull();
+  });
+
+  it("GET /payments (paginated) and GET /payments/{payment}", async () => {
+    const m = mockFetch(
+      json({ data: [payment({ entitlement_status: "consumed", review_id: 9 })], links: {}, meta: { current_page: 2, last_page: 2, per_page: 15, total: 16 } }),
+      json({ data: payment() }),
+    );
+    const page = await api.listPayments("t", 2);
+    expect(sent(m, 0).url).toBe(`${BASE}/payments?page=2`);
+    expect([page.items[0]!.entitlementStatus, page.items[0]!.reviewId]).toEqual(["consumed", "9"]);
+    expect((await api.getPayment("t", 42)).id).toBe(42);
+    expect(sent(m, 1).url).toBe(`${BASE}/payments/42`);
   });
 });
 
@@ -244,16 +289,22 @@ describe("reviews", () => {
     expect(sent(m, 1).url).toBe(`${BASE}/reviews/9`);
   });
 
-  it("GET /reviews/{review}/download returns the file with its filename", async () => {
+  it("filters reviews for one resume with ?resume_id=", async () => {
+    const m = mockFetch(json({ data: [], links: {}, meta: { current_page: 1, last_page: 1, per_page: 15, total: 0 } }));
+    await api.listReviews("t", 1, "3");
+    expect(sent(m).url).toBe(`${BASE}/reviews?page=1&resume_id=3`);
+  });
+
+  it("GET /reviews/{review}/download returns the plain-text report with its filename", async () => {
     const m = mockFetch(
-      new Response(new Blob(["%PDF-1.4"], { type: "application/pdf" }), {
+      new Response(new Blob(["CareerPrep review"], { type: "text/plain" }), {
         status: 200,
-        headers: { "Content-Type": "application/pdf", "Content-Disposition": 'attachment; filename="review-9.pdf"' },
+        headers: { "Content-Type": "text/plain; charset=UTF-8", "Content-Disposition": 'attachment; filename="careerprep-review-9.txt"' },
       }),
     );
     const { blob, fileName } = await api.downloadReview("t", "9");
-    expect(fileName).toBe("review-9.pdf");
-    expect(await blob.text()).toBe("%PDF-1.4");
+    expect(fileName).toBe("careerprep-review-9.txt");
+    expect(await blob.text()).toBe("CareerPrep review");
     const r = sent(m);
     expect([r.method, r.url, r.headers.Authorization, r.credentials]).toEqual(["GET", `${BASE}/reviews/9/download`, "Bearer t", "omit"]);
   });
@@ -273,14 +324,18 @@ describe("response normalisers (rename only, never invent)", () => {
       sizeBytes: 2048,
       mimeType: null,
       uploadedAt: "2026-10-01T10:00:00Z",
-      status: null,
+      extractionStatus: null,
+      extractionError: null,
     });
+    const failed = toResume({ data: { id: 6, original_name: "scan.pdf", extraction_status: "failed", extraction_error: "No text layer." } })!;
+    expect([failed.extractionStatus, failed.extractionError]).toEqual(["failed", "No text layer."]);
   });
 
-  it("only treats explicit success statuses as a verified payment", () => {
-    expect(toPaymentVerification({ data: { status: "success", reference: "R" } }).verified).toBe(true);
-    expect(toPaymentVerification({ data: { status: "abandoned" } }).verified).toBe(false);
-    expect(toPaymentVerification({ data: {} }).verified).toBe(false);
+  it("only treats Laravel's exact payment statuses as known", () => {
+    expect(toPayment({ data: payment({ status: "verified" }) })!.status).toBe("verified");
+    expect(toPayment({ data: payment({ status: "success" }) })!.status).toBe("unknown");
+    expect(toPayment({ data: payment({ entitlement_status: "bogus" }) })!.entitlementStatus).toBe("unknown");
+    expect(toPayment({ data: {} })).toBeNull();
   });
 
   it("maps pending, completed and failed reviews", () => {
@@ -298,5 +353,24 @@ describe("response normalisers (rename only, never invent)", () => {
     expect(done.recommendations[0]).toMatchObject({ title: "Quantify results", detail: "Add numbers to 3 bullets" });
     expect(toReview({ data: { id: 1, status: "pending" } })!.status).toBe("pending");
     expect(toReview({ data: { id: 2, status: "failed" } })!.status).toBe("failed");
+  });
+
+  it("maps the documented Review resource (object category scores, string findings, disclaimer)", () => {
+    const rv = toReview({
+      data: {
+        id: 9, resume_id: 3, payment_id: 7, resume_name: "cv.pdf", status: "completed", assessment_version: "rule-based-v1",
+        overall_score: 72, category_scores: { contact_information: 80, achievements: 40 },
+        weaknesses: ["No measurable achievements"], recommendations: ["Quantify results"], failure_reason: null,
+        disclaimer: "This automated rule-based review is guidance only.", completed_at: "2026-10-13T10:01:00Z", created_at: "2026-10-13T10:00:00Z",
+      },
+    })!;
+    expect(rv.categoryScores).toEqual([
+      { name: "contact_information", score: 80, max: null },
+      { name: "achievements", score: 40, max: null },
+    ]);
+    expect([rv.resumeId, rv.resumeName, rv.overallScore, rv.assessmentVersion]).toEqual(["3", "cv.pdf", 72, "rule-based-v1"]);
+    expect(rv.weaknesses).toEqual([{ title: "No measurable achievements", detail: null, category: null }]);
+    expect(rv.strengths).toEqual([]);
+    expect(rv.disclaimer).toBe("This automated rule-based review is guidance only.");
   });
 });

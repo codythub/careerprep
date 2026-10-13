@@ -136,7 +136,7 @@ export function ReviewDetailView({ id }: { id: string }) {
             The service returned this review without a status we recognise, so results can&apos;t be shown yet.
           </Alert>
           <div className="mt-6">
-            <HeuristicDisclaimer />
+            <HeuristicDisclaimer text={rv.disclaimer} />
           </div>
         </>
       )}

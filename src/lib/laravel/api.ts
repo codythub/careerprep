@@ -4,14 +4,12 @@ import {
   toAuth,
   toCandidate,
   toPage,
-  toPaymentInit,
-  toPaymentVerification,
+  toPayment,
   toResume,
   toReview,
   type Candidate,
   type Page,
-  type PaymentInit,
-  type PaymentVerification,
+  type Payment,
   type Resume,
   type Review,
 } from "@/lib/laravel/types";
@@ -66,32 +64,48 @@ export const api = {
   },
 
   // ── Payments: POST { resume_id } → data.id + data.authorization_url ────────
-  async createPayment(token: string, resumeId: string | number): Promise<PaymentInit> {
+  async createPayment(token: string, resumeId: string | number): Promise<Payment & { authorizationUrl: string }> {
     const body = await laravel(ENDPOINTS.payments, { method: "POST", token, json: { resume_id: numericId(resumeId, "resume") } });
-    return required(toPaymentInit(body), "payment");
+    const payment = required(toPayment(body), "payment");
+    if (!payment.authorizationUrl) throw new ApiError("The CareerPrep service didn't return a checkout link.", 502);
+    return { ...payment, authorizationUrl: payment.authorizationUrl };
   },
-  /** POST /payments/{payment}/verify — no body; Laravel verifies with Paystack server-side. */
-  async verifyPayment(token: string, paymentId: number): Promise<PaymentVerification> {
-    return toPaymentVerification(await laravel(ENDPOINTS.paymentVerify(paymentId), { method: "POST", token }));
+  async listPayments(token: string, page = 1): Promise<Page<Payment>> {
+    return toPage(await laravel(`${ENDPOINTS.payments}?page=${page}`, { token }), toPayment);
+  },
+  /** GET /payments?reference= — the candidate's own payment with that reference, or null. */
+  async findPaymentByReference(token: string, reference: string): Promise<Payment | null> {
+    const page = toPage(await laravel(`${ENDPOINTS.payments}?reference=${encodeURIComponent(reference)}`, { token }), toPayment);
+    return page.items.find((p) => p.reference === reference) ?? null;
+  },
+  async getPayment(token: string, id: number): Promise<Payment> {
+    return required(toPayment(await laravel(ENDPOINTS.payment(numericId(id, "payment")), { token })), "payment");
+  },
+  /** POST /payments/{payment}/verify — no body; Laravel verifies with Paystack server-side (422 if not paid). */
+  async verifyPayment(token: string, paymentId: number): Promise<Payment> {
+    const body = await laravel(ENDPOINTS.paymentVerify(numericId(paymentId, "payment")), { method: "POST", token });
+    return required(toPayment(body), "payment");
   },
 
-  // ── Reviews: POST { payment_id }; paginated list ──────────────────────────
+  // ── Reviews: POST { payment_id }; paginated list, optionally for one resume ─
   async createReview(token: string, paymentId: number): Promise<Review> {
     const body = await laravel(ENDPOINTS.reviews, { method: "POST", token, json: { payment_id: numericId(paymentId, "payment") } });
     return required(toReview(body), "review");
   },
-  async listReviews(token: string, page = 1): Promise<Page<Review>> {
-    return toPage(await laravel(`${ENDPOINTS.reviews}?page=${page}`, { token }), toReview);
+  async listReviews(token: string, page = 1, resumeId?: string): Promise<Page<Review>> {
+    const query = new URLSearchParams({ page: String(page) });
+    if (resumeId !== undefined) query.set("resume_id", String(numericId(resumeId, "resume")));
+    return toPage(await laravel(`${ENDPOINTS.reviews}?${query}`, { token }), toReview);
   },
   async getReview(token: string, id: string): Promise<Review> {
     return required(toReview(await laravel(ENDPOINTS.review(id), { token })), "review");
   },
-  /** GET /reviews/{review}/download — returns the file as a Blob plus a suggested filename. */
+  /** GET /reviews/{review}/download — a plain-text report; Laravel names it in Content-Disposition. */
   async downloadReview(token: string, id: string): Promise<{ blob: Blob; fileName: string }> {
     const res = await laravel<Response>(ENDPOINTS.reviewDownload(id), { token, raw: true });
     const disposition = res.headers.get("content-disposition") ?? "";
     const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
-    return { blob: await res.blob(), fileName: match ? decodeURIComponent(match[1]!) : `careerprep-review-${id}.pdf` };
+    return { blob: await res.blob(), fileName: match ? decodeURIComponent(match[1]!) : `careerprep-review-${id}.txt` };
   },
 };
 

@@ -47,7 +47,7 @@ export function onTokenChange(cb: () => void): () => void {
 
 // ── Pending payment (survives the Paystack redirect) ─────────────────────────
 
-export type PendingPayment = { paymentId: number; resumeId: number };
+export type PendingPayment = { paymentId: number };
 
 export function savePendingPayment(p: PendingPayment) {
   storage()?.setItem(PENDING_PAYMENT_STORAGE_KEY, JSON.stringify(p));
@@ -58,7 +58,7 @@ export function getPendingPayment(): PendingPayment | null {
   if (!raw) return null;
   try {
     const v = JSON.parse(raw) as Partial<PendingPayment>;
-    return typeof v.paymentId === "number" && typeof v.resumeId === "number" ? { paymentId: v.paymentId, resumeId: v.resumeId } : null;
+    return typeof v.paymentId === "number" ? { paymentId: v.paymentId } : null;
   } catch {
     return null;
   }

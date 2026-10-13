@@ -24,10 +24,11 @@ export const ENDPOINTS = {
   // Resumes — list is paginated (data, links, meta; 15 per page)
   resumes: "/resumes", // GET, POST multipart field "resume"
   resume: (id: string | number) => `/resumes/${encodeURIComponent(String(id))}`, // GET, DELETE (204)
-  // Payments — POST { resume_id }, returns data.id + data.authorization_url
-  payments: "/payments", // POST
+  // Payments — POST { resume_id } returns data.id + data.authorization_url; list filters by ?reference=
+  payments: "/payments", // GET (paginated), POST
+  payment: (paymentId: string | number) => `/payments/${encodeURIComponent(String(paymentId))}`, // GET
   paymentVerify: (paymentId: string | number) => `/payments/${encodeURIComponent(String(paymentId))}/verify`, // POST
-  // Reviews — POST { payment_id }; list is paginated
+  // Reviews — POST { payment_id }; list is paginated and filters by ?resume_id=
   reviews: "/reviews", // GET, POST
   review: (id: string | number) => `/reviews/${encodeURIComponent(String(id))}`, // GET
   reviewDownload: (id: string | number) => `/reviews/${encodeURIComponent(String(id))}/download`, // GET

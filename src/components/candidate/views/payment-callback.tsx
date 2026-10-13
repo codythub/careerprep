@@ -2,42 +2,70 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { CheckCircle2, Clock, XCircle } from "lucide-react";
 import { api } from "@/lib/laravel/api";
-import { getPendingPayment, type PendingPayment } from "@/lib/laravel/token";
+import { ApiError } from "@/lib/laravel/client";
+import { getPendingPayment } from "@/lib/laravel/token";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Alert, Card, CardBody } from "@/components/ui/primitives";
 import { StartReviewButton } from "@/components/candidate/actions";
 import { useApi } from "@/components/candidate/auth";
 import { Loading } from "@/components/candidate/views/loading";
 
+/** What identifies the payment to verify: Paystack's `?reference=`, else the ID saved before checkout. */
+type Lookup = { reference: string } | { paymentId: number };
+
 /**
- * Paystack returns the candidate here. The query string is never trusted: the Laravel payment ID
- * saved before checkout is verified with POST /payments/{payment}/verify before the review unlocks.
+ * Paystack returns the candidate here with `?reference=&trxref=`. Those values only locate the
+ * candidate's own payment (GET /payments?reference=, scoped to them by Laravel); the payment is
+ * then verified server-side with POST /payments/{payment}/verify before the review unlocks.
  */
 export function PaymentCallbackView() {
-  // undefined = not read yet (client storage), null = nothing pending.
-  const [pending, setPending] = useState<PendingPayment | null | undefined>(undefined);
+  const params = useSearchParams();
+  const reference = params.get("reference") ?? params.get("trxref");
+  // undefined = not read yet (client storage), null = nothing to verify.
+  const [lookup, setLookup] = useState<Lookup | null | undefined>(reference ? { reference } : undefined);
   useEffect(() => {
-    const t = setTimeout(() => setPending(getPendingPayment()), 0);
+    if (reference) return;
+    const t = setTimeout(() => {
+      const pending = getPendingPayment();
+      setLookup(pending ? { paymentId: pending.paymentId } : null);
+    }, 0);
     return () => clearTimeout(t);
-  }, []);
+  }, [reference]);
 
-  if (pending === undefined) return <Loading label="Checking your payment…" />;
-  if (!pending) {
-    return (
-      <Shell icon={<XCircle className="size-10 text-rose-500" />} title="No payment to confirm">
-        <p>We couldn&apos;t identify the payment to verify. If you were charged, contact support with your Paystack receipt.</p>
-        <LinkButton href="/dashboard/resumes" className="mt-6">Back to my resumes</LinkButton>
-      </Shell>
-    );
-  }
-  return <Verify pending={pending} />;
+  if (lookup === undefined) return <Loading label="Checking your payment…" />;
+  if (!lookup) return <NoPayment />;
+  return <Verify lookup={lookup} />;
 }
 
-function Verify({ pending }: { pending: PendingPayment }) {
-  const result = useApi((t) => api.verifyPayment(t, pending.paymentId), [pending.paymentId]);
-  const resumeHref = `/dashboard/resumes/${pending.resumeId}`;
+function NoPayment() {
+  return (
+    <Shell icon={<XCircle className="size-10 text-rose-500" />} title="No payment to confirm">
+      <p>We couldn&apos;t identify the payment to verify. If you were charged, contact support with your Paystack receipt.</p>
+      <LinkButton href="/dashboard/resumes" className="mt-6">Back to my resumes</LinkButton>
+    </Shell>
+  );
+}
+
+async function findAndVerify(token: string, lookup: Lookup) {
+  const paymentId = "paymentId" in lookup ? lookup.paymentId : (await api.findPaymentByReference(token, lookup.reference))?.id;
+  if (paymentId === undefined) return null;
+  try {
+    return { payment: await api.verifyPayment(token, paymentId), notPaid: null };
+  } catch (err) {
+    // 422: Paystack did not report a successful payment for the expected amount/currency.
+    if (err instanceof ApiError && err.status === 422) {
+      return { payment: await api.getPayment(token, paymentId), notPaid: err.fieldErrors.payment?.[0] ?? err.message };
+    }
+    throw err;
+  }
+}
+
+function Verify({ lookup }: { lookup: Lookup }) {
+  const key = "reference" in lookup ? lookup.reference : lookup.paymentId;
+  const result = useApi((t) => findAndVerify(t, lookup), [key]);
 
   if (result.loading) return <Loading label="Confirming your payment with CareerPrep…" />;
 
@@ -54,15 +82,15 @@ function Verify({ pending }: { pending: PendingPayment }) {
     );
   }
 
-  const v = result.data!;
-  if (!v.verified) {
+  if (!result.data) return <NoPayment />;
+  const { payment, notPaid } = result.data;
+  const resumeHref = payment.resumeId ? `/dashboard/resumes/${payment.resumeId}` : "/dashboard/resumes";
+
+  if (notPaid !== null || payment.status !== "verified") {
     return (
       <Shell icon={<XCircle className="size-10 text-rose-500" />} title="Payment not completed">
-        <p>
-          CareerPrep could not confirm this payment{v.status ? ` (status: ${v.status})` : ""}. You have not been given a review for
-          this attempt.
-        </p>
-        {v.message && <p className="mt-2 text-sm">{v.message}</p>}
+        <p>CareerPrep could not confirm this payment. You have not been given a review for this attempt.</p>
+        {notPaid && <p className="mt-2 text-sm">{notPaid}</p>}
         <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
           <LinkButton href={resumeHref}>Try again</LinkButton>
           <Button variant="outline" onClick={result.reload}>Check again</Button>
@@ -71,12 +99,23 @@ function Verify({ pending }: { pending: PendingPayment }) {
     );
   }
 
+  if (payment.entitlementStatus === "consumed") {
+    return (
+      <Shell icon={<CheckCircle2 className="size-10 text-emerald-600" />} title="Payment already used">
+        <p>This payment was verified and its review has already been started.</p>
+        <div className="mt-6 flex justify-center">
+          <LinkButton href={payment.reviewId ? `/dashboard/reviews/${payment.reviewId}` : "/dashboard/reviews"}>Open the review</LinkButton>
+        </div>
+      </Shell>
+    );
+  }
+
   return (
     <Shell icon={<CheckCircle2 className="size-10 text-emerald-600" />} title="Payment confirmed">
       <p>Your payment was verified by CareerPrep. Your resume review is unlocked.</p>
-      {v.reference && <p className="mt-1 text-xs text-slate-500">Reference: {v.reference}</p>}
+      {payment.reference && <p className="mt-1 text-xs text-slate-500">Reference: {payment.reference}</p>}
       <div className="mt-6 flex justify-center">
-        <StartReviewButton paymentId={pending.paymentId} />
+        <StartReviewButton paymentId={payment.id} />
       </div>
     </Shell>
   );

@@ -59,12 +59,17 @@ function FindingList({ items, icon, tone }: { items: Finding[]; icon: "warn" | "
   );
 }
 
-export function HeuristicDisclaimer() {
+/** Laravel's disclaimer for the review when it sends one, otherwise the site's standard wording. */
+export function HeuristicDisclaimer({ text }: { text?: string | null }) {
   return (
     <p className="flex gap-2 rounded-lg bg-slate-50 p-4 text-xs leading-relaxed text-slate-600">
       <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
-      This assessment is rule-based guidance generated automatically from your PDF. It is not a real applicant tracking
-      system (ATS) score, it does not represent any employer&apos;s view, and it does not guarantee interviews or employment.
+      {text ?? (
+        <>
+          This assessment is rule-based guidance generated automatically from your PDF. It is not a real applicant tracking
+          system (ATS) score, it does not represent any employer&apos;s view, and it does not guarantee interviews or employment.
+        </>
+      )}
     </p>
   );
 }
@@ -171,7 +176,7 @@ export function ReviewResults({ review }: { review: Review }) {
         </Card>
       </div>
 
-      <HeuristicDisclaimer />
+      <HeuristicDisclaimer text={review.disclaimer} />
     </div>
   );
 }

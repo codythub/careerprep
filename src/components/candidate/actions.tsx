@@ -57,13 +57,13 @@ export function DeleteResumeButton({ resumeId, redirectTo, onDeleted }: { resume
 }
 
 /**
- * POST /payments { resume_id } → remember data.id (needed to verify after Paystack returns),
+ * POST /payments { resume_id } → remember data.id (a fallback if Paystack returns without ?reference=),
  * then go to Paystack's hosted checkout at data.authorization_url.
  */
 export function PayForReviewButton({ resumeId, label = "Pay & review this resume" }: { resumeId: string; label?: string }) {
   const action = useCandidateAction(async (token) => {
     const payment = await api.createPayment(token, resumeId);
-    savePendingPayment({ paymentId: payment.paymentId, resumeId: Number(resumeId) });
+    savePendingPayment({ paymentId: payment.id });
     window.location.assign(payment.authorizationUrl);
     // Keep the button busy while the browser navigates away.
     return new Promise<ActionState>(() => {});

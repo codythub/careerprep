@@ -1,30 +1,39 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, FileText, ShieldCheck } from "lucide-react";
 import { formatBytes, formatDate, formatDateTime } from "@/lib/format";
 import { api } from "@/lib/laravel/api";
-import { getPendingPayment } from "@/lib/laravel/token";
+import type { ExtractionStatus, Payment } from "@/lib/laravel/types";
 import { LinkButton } from "@/components/ui/button";
 import { Alert, Card, CardBody, DefinitionList, PageHeader } from "@/components/ui/primitives";
-import { DeleteResumeButton, PayForReviewButton } from "@/components/candidate/actions";
+import { DeleteResumeButton, PayForReviewButton, StartReviewButton } from "@/components/candidate/actions";
 import { ReviewStatusBadge, ScorePill } from "@/components/candidate/review-view";
 import { useApi } from "@/components/candidate/auth";
 import { Loading } from "@/components/candidate/views/loading";
 
+const EXTRACTION_LABEL: Record<ExtractionStatus, string> = { pending: "Pending", succeeded: "Readable", failed: "Couldn't be read" };
+
+/** GET /payments has no resume filter, so walk the candidate's (newest-first) pages for this resume. */
+async function paymentsForResume(token: string, resumeId: string): Promise<Payment[]> {
+  const out: Payment[] = [];
+  for (let page = 1; page <= 20; page++) {
+    const res = await api.listPayments(token, page);
+    out.push(...res.items.filter((p) => p.resumeId === resumeId));
+    if (page >= res.lastPage) break;
+  }
+  return out;
+}
+
 export function ResumeDetailView({ id }: { id: string }) {
   const resume = useApi((t) => api.getResume(t, id), [id]);
-  // Laravel has no per-resume review filter in the contract: show matches from the latest page of reviews.
-  const reviews = useApi((t) => api.listReviews(t), []);
-  const forThis = (reviews.data?.items ?? []).filter((r) => r.resumeId === id);
-
-  // A checkout started for this resume whose payment hasn't been verified/used yet (client storage).
-  const [hasPending, setHasPending] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setHasPending(String(getPendingPayment()?.resumeId ?? "") === id), 0);
-    return () => clearTimeout(t);
-  }, [id]);
+  const reviews = useApi((t) => api.listReviews(t, 1, id), [id]);
+  const forThis = reviews.data?.items ?? [];
+  const payments = useApi((t) => paymentsForResume(t, id), [id]);
+  // A verified payment whose one review hasn't been started yet.
+  const unused = payments.data?.find((p) => p.entitlementStatus === "available") ?? null;
+  // A checkout that was started but never verified (e.g. the candidate closed the tab after paying).
+  const unconfirmed = payments.data?.find((p) => p.status === "initialized" && p.reference) ?? null;
 
   const back = (
     <Link href="/dashboard/resumes" className="text-sm text-slate-500 hover:text-slate-900">← My resumes</Link>
@@ -57,14 +66,31 @@ export function ResumeDetailView({ id }: { id: string }) {
                 Pay securely with Paystack. Once CareerPrep confirms your payment, you can run one review of this resume and see
                 your overall score, category scores, weaknesses and recommendations.
               </p>
-              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <PayForReviewButton resumeId={r.id} />
-              </div>
-              {hasPending && (
+              {unused ? (
+                <div className="mt-5">
+                  <Alert tone="success" title="You have a paid review ready">
+                    Your payment{unused.reference ? ` (${unused.reference})` : ""} was verified. Start the review whenever you&apos;re ready.
+                  </Alert>
+                  <div className="mt-4">
+                    <StartReviewButton paymentId={unused.id} />
+                  </div>
+                </div>
+              ) : r.extractionStatus === "failed" ? (
+                <Alert tone="warning" title="We couldn't read the text in this PDF" className="mt-5">
+                  {r.extractionError ?? "The assessment needs selectable text."} A review of this file would fail, so payment is
+                  turned off for it. Export your resume as a text-based PDF (not a scan or image) and upload it again.
+                </Alert>
+              ) : (
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <PayForReviewButton resumeId={r.id} />
+                </div>
+              )}
+              {payments.error && <Alert tone="error" className="mt-4">{payments.error}</Alert>}
+              {!unused && unconfirmed?.reference && (
                 <div className="mt-5 border-t border-slate-100 pt-4">
                   <p className="text-sm text-slate-600">Already paid for this resume and didn&apos;t start the review?</p>
                   <div className="mt-2">
-                    <LinkButton href="/dashboard/payments/callback" variant="outline">
+                    <LinkButton href={`/dashboard/payments/callback?reference=${encodeURIComponent(unconfirmed.reference)}`} variant="outline">
                       Confirm my payment
                     </LinkButton>
                   </div>
@@ -116,7 +142,7 @@ export function ResumeDetailView({ id }: { id: string }) {
                 ["Size", r.sizeBytes !== null ? formatBytes(r.sizeBytes) : "—"],
                 ["Type", r.mimeType ?? "—"],
                 ["Uploaded", formatDate(r.uploadedAt)],
-                ...(r.status ? ([["Status", r.status]] as Array<[string, string]>) : []),
+                ...(r.extractionStatus ? ([["Text extraction", EXTRACTION_LABEL[r.extractionStatus]]] as Array<[string, string]>) : []),
               ]}
             />
           </CardBody>

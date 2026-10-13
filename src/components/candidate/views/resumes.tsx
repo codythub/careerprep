@@ -56,7 +56,7 @@ export function ResumesView() {
                       <span className="min-w-0">
                         <span className="block truncate font-medium group-hover:text-brand-700">{r.fileName}</span>
                         <span className="block text-xs text-slate-500">
-                          {[r.uploadedAt && `Uploaded ${formatDate(r.uploadedAt)}`, r.sizeBytes !== null && formatBytes(r.sizeBytes), r.status]
+                          {[r.uploadedAt && `Uploaded ${formatDate(r.uploadedAt)}`, r.sizeBytes !== null && formatBytes(r.sizeBytes), r.extractionStatus === "failed" && "Text couldn't be read"]
                             .filter(Boolean)
                             .join(" · ")}
                         </span>
