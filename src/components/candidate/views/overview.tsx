@@ -6,9 +6,10 @@ import { ArrowRight, ClipboardList, CreditCard, FileText, FileUp, Gauge, Sparkle
 import { formatDate } from "@/lib/format";
 import { api } from "@/lib/laravel/api";
 import type { Payment, Resume, Review } from "@/lib/laravel/types";
-import { LinkButton } from "@/components/ui/button";
+import { buttonClass, LinkButton } from "@/components/ui/button";
 import { Alert, Card, CardBody, IconTile, PageHeader, Skeleton, Stat } from "@/components/ui/primitives";
 import { ScoreRing } from "@/components/ui/score";
+import { BreakableText } from "@/components/ui/breakable";
 import { StartReviewButton } from "@/components/candidate/actions";
 import { ReviewStatusBadge } from "@/components/candidate/review-view";
 import { useApi, useCandidateAuth } from "@/components/candidate/auth";
@@ -156,20 +157,23 @@ export function DashboardOverview() {
               <Skeleton className="mt-4 h-40" />
             ) : latest ? (
               <>
-                <div className="mt-4 flex items-center gap-4">
+                {/* Stacked and centred so long file names wrap instead of being cut off beside the ring. */}
+                <div className="mt-5 flex flex-col items-center text-center">
                   {latest.status === "completed" && latest.overallScore !== null ? (
                     <ScoreRing score={latest.overallScore} max={latest.overallMax ?? 100} size="md" />
                   ) : (
                     <ReviewStatusBadge status={latest.status} />
                   )}
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-slate-900">{latest.resumeName ?? "Resume review"}</p>
-                    <p className="text-xs text-slate-500">{formatDate(latest.createdAt)}</p>
-                  </div>
+                  <p className="mt-4 line-clamp-2 max-w-full font-medium wrap-anywhere text-slate-900" title={latest.resumeName ?? undefined}>
+                    {latest.resumeName ? <BreakableText text={latest.resumeName} /> : "Resume review"}
+                  </p>
+                  <p className="mt-0.5 text-xs text-slate-500">{formatDate(latest.createdAt)}</p>
                 </div>
-                <Link href={`/dashboard/reviews/${latest.id}`} className="mt-auto inline-flex items-center gap-1 pt-5 text-sm font-semibold text-brand-700 hover:text-brand-800">
-                  Open review <ArrowRight className="size-4" aria-hidden />
-                </Link>
+                <div className="mt-auto pt-5">
+                  <Link href={`/dashboard/reviews/${latest.id}`} className={buttonClass("outline", "sm", "w-full")}>
+                    Open review <ArrowRight className="size-4" aria-hidden />
+                  </Link>
+                </div>
               </>
             ) : (
               <p className="mt-4 text-sm leading-relaxed text-slate-600">No reviews yet. Your first assessment will appear here.</p>

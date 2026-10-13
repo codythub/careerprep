@@ -8,6 +8,7 @@ import type { ExtractionStatus, Payment } from "@/lib/laravel/types";
 import { usePricing } from "@/lib/laravel/use-pricing";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Alert, Card, CardBody, DefinitionList, IconTile, PageHeader, Skeleton } from "@/components/ui/primitives";
+import { BreakableText } from "@/components/ui/breakable";
 import { DeleteResumeButton, PayForReviewButton, StartReviewButton } from "@/components/candidate/actions";
 import { ReviewStatusBadge, ScorePill } from "@/components/candidate/review-view";
 import { useApi } from "@/components/candidate/auth";
@@ -81,7 +82,7 @@ export function ResumeDetailView({ id }: { id: string }) {
       <div className="mt-4">
         <PageHeader
           eyebrow="Resume"
-          title={r.fileName}
+          title={<BreakableText text={r.fileName} />}
           description={
             <span className="flex flex-wrap items-center gap-2">
               <ExtractionBadge status={r.extractionStatus} />
@@ -197,7 +198,7 @@ export function ResumeDetailView({ id }: { id: string }) {
             </IconTile>
             <DefinitionList
               items={[
-                ["File name", r.fileName],
+                ["File name", <BreakableText key="name" text={r.fileName} />],
                 ["Size", r.sizeBytes !== null ? formatBytes(r.sizeBytes) : "—"],
                 ["Type", r.mimeType ?? "—"],
                 ["Uploaded", formatDate(r.uploadedAt)],

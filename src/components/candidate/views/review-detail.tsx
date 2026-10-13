@@ -9,6 +9,7 @@ import { ApiError } from "@/lib/laravel/client";
 import type { Review } from "@/lib/laravel/types";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Alert, Card, CardBody, PageHeader, Skeleton } from "@/components/ui/primitives";
+import { BreakableText } from "@/components/ui/breakable";
 import { AutoRefresh, RetryReviewButton } from "@/components/candidate/actions";
 import { HeuristicDisclaimer, ReviewResults, ReviewStatusBadge } from "@/components/candidate/review-view";
 import { useApi, useCandidateAuth } from "@/components/candidate/auth";
@@ -105,7 +106,7 @@ export function ReviewDetailView({ id }: { id: string }) {
       <div className="mt-4">
         <PageHeader
           eyebrow="Resume review"
-          title={rv.resumeName ?? "Resume assessment"}
+          title={rv.resumeName ? <BreakableText text={rv.resumeName} /> : "Resume assessment"}
           description={
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <ReviewStatusBadge status={rv.status} />
