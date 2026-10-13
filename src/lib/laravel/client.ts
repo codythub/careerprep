@@ -6,12 +6,26 @@ export class ApiError extends Error {
     message: string,
     public readonly status: number,
     public readonly fieldErrors: Record<string, string[]> = {},
+    /** True when the site itself is misconfigured (no API URL), as opposed to a network or server failure. */
+    public readonly isConfigError = false,
   ) {
     super(message);
     this.name = "ApiError";
   }
   get isUnauthorized() {
     return this.status === 401;
+  }
+}
+
+/** Shown when the site was built without NEXT_PUBLIC_API_URL (a deployment problem, not the user's connection). */
+export const CONFIG_ERROR_MESSAGE = "This site isn't configured to reach the CareerPrep service yet. Please try again later or contact support.";
+
+/** Resolve the API base URL, turning a missing NEXT_PUBLIC_API_URL into an ApiError (status 0, `isConfigError`). */
+export function resolveBaseUrl(): string {
+  try {
+    return apiBaseUrl();
+  } catch {
+    throw new ApiError(CONFIG_ERROR_MESSAGE, 0, {}, true);
   }
 }
 
@@ -36,7 +50,10 @@ export function toApiError(status: number, data: unknown): ApiError {
   let message: string;
   if (status === 422) message = laravelMessage ?? "Please fix the highlighted fields.";
   else if (status === 401) message = FRIENDLY[401]!;
-  else if (status >= 500) message = "Something went wrong on our side. Please try again shortly.";
+  // Deliberate aborts (e.g. 503 "Payments are not configured.") carry a message worth showing.
+  // A 500 is an unexpected exception whose message may hold internals (if APP_DEBUG is ever
+  // on), so it always gets the generic text.
+  else if (status >= 500) message = status !== 500 && laravelMessage ? laravelMessage : "Something went wrong on our side. Please try again shortly.";
   else message = laravelMessage ?? FRIENDLY[status] ?? "The request could not be completed.";
   return new ApiError(message, status, fieldErrors);
 }
@@ -64,9 +81,10 @@ export async function laravel<T = unknown>(path: string, opts: RequestOptions = 
     body = JSON.stringify(opts.json);
   }
 
+  const base = resolveBaseUrl();
   let res: Response;
   try {
-    res = await fetch(`${apiBaseUrl()}${path}`, {
+    res = await fetch(`${base}${path}`, {
       method: opts.method ?? (body ? "POST" : "GET"),
       headers,
       body,

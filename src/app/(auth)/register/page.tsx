@@ -9,11 +9,11 @@ export default function RegisterPage() {
   return (
     <>
       <h1 className="text-2xl font-semibold">Create your account</h1>
-      <p className="mt-1 text-sm text-slate-600">Free to join. Upload your resume and get an automated assessment.</p>
-      <RegisterForm className="mt-6 space-y-4">
+      <p className="mt-1.5 text-sm text-slate-600">Free to join. Upload your resume and get an automated assessment.</p>
+      <RegisterForm className="mt-6 space-y-5">
         <TextField name="name" label="Full name" autoComplete="name" required />
         <TextField name="email" type="email" label="Email" autoComplete="email" required />
-        <TextField name="password" type="password" label="Password" autoComplete="new-password" required />
+        <TextField name="password" type="password" label="Password" autoComplete="new-password" required minLength={8} maxLength={72} hint="8 to 72 characters." />
         <TextField name="password_confirmation" type="password" label="Confirm password" autoComplete="new-password" required />
         <CheckboxField
           name="acceptTerms"
@@ -35,7 +35,7 @@ export default function RegisterPage() {
           Create account
         </SubmitButton>
       </RegisterForm>
-      <p className="mt-6 text-center text-sm text-slate-600">
+      <p className="mt-6 border-t border-line pt-6 text-center text-sm text-slate-600">
         Already have an account?{" "}
         <Link href="/login" className="font-semibold text-brand-700 hover:text-brand-800">
           Sign in

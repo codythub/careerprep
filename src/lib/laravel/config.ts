@@ -14,7 +14,9 @@ export function apiBaseUrl(): string {
 }
 
 export const ENDPOINTS = {
-  // Auth — responses are { data: User, token: string }
+  // Public price of one review — { data: { review: { amount (kobo), currency, available } } }
+  pricing: "/pricing", // GET (no token)
+  // Auth — responses are { data: User, token: string, expires_at: string | null }
   register: "/auth/register", // POST
   login: "/auth/login", // POST
   user: "/auth/user", // GET
@@ -31,6 +33,7 @@ export const ENDPOINTS = {
   // Reviews — POST { payment_id }; list is paginated and filters by ?resume_id=
   reviews: "/reviews", // GET, POST
   review: (id: string | number) => `/reviews/${encodeURIComponent(String(id))}`, // GET
+  reviewRetry: (id: string | number) => `/reviews/${encodeURIComponent(String(id))}/retry`, // POST { resume_id? }
   reviewDownload: (id: string | number) => `/reviews/${encodeURIComponent(String(id))}/download`, // GET
 } as const;
 
@@ -46,4 +49,5 @@ export const PAGE_SIZE = 15;
 
 /** Browser storage keys (client-side auth — the API does not use cookies). */
 export const TOKEN_STORAGE_KEY = "careerprep.token";
+export const TOKEN_EXPIRY_STORAGE_KEY = "careerprep.tokenExpiresAt";
 export const PENDING_PAYMENT_STORAGE_KEY = "careerprep.pendingPayment";

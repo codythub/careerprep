@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { Lock, ShieldAlert, ShieldCheck, Sparkles } from "lucide-react";
 import { siteConfig } from "@/config/site";
 import { LinkButton } from "@/components/ui/button";
-import { accent } from "@/lib/accents";
+import { IconTile } from "@/components/ui/primitives";
+import { PageIntro } from "@/components/site/page-intro";
 
 export const metadata: Metadata = {
   title: "About",
@@ -10,41 +12,51 @@ export const metadata: Metadata = {
 };
 
 const PRINCIPLES = [
-  ["Honesty first", "We never promise jobs, publish fake testimonials or invent statistics."],
-  ["Verified, not assumed", "“Nigeria Eligible” appears only when our team has confirmed it."],
-  ["Your data is yours", "Resumes are stored privately and shared with no one without your permission."],
-  ["Safety", "Every listing is reviewed, and anyone can report a suspicious job."],
+  { icon: ShieldCheck, title: "Honesty first", body: "We never promise jobs, publish fake testimonials or invent statistics." },
+  { icon: Sparkles, title: "Practical guidance", body: "Every recommendation is something you can act on yourself, today." },
+  { icon: Lock, title: "Your data is yours", body: "Resumes are stored privately and shared with no one without your permission." },
+  { icon: ShieldAlert, title: "Safety", body: "Our free guides help you spot job scams — and never pay anyone to get a job." },
 ];
 
 export default function AboutPage() {
   return (
-    <div className="container-page py-14 sm:py-20">
-      <div className="max-w-3xl">
-        <p className="text-sm font-semibold text-brand-700">About {siteConfig.name}</p>
-        <h1 className="mt-2 text-4xl font-semibold leading-tight sm:text-5xl">{siteConfig.brandMessage}</h1>
-        <p className="mt-5 text-lg leading-relaxed text-slate-600">{siteConfig.supportingMessage}</p>
-        <p className="mt-4 leading-relaxed text-slate-600">
-          Many talented Nigerian professionals struggle with three things: resumes that undersell them, not knowing where to
-          find legitimate remote opportunities, and feeling unprepared for applications and interviews. {siteConfig.name}{" "}
-          exists to help with all three — practically and honestly.
+    <>
+      <PageIntro
+        eyebrow={`About ${siteConfig.name}`}
+        title={siteConfig.brandMessage}
+        actions={
+          <>
+            <LinkButton href="/resume-optimization" size="lg">
+              Review my resume
+            </LinkButton>
+            <LinkButton href="/career-guides" variant="outline" size="lg">
+              Read the guides
+            </LinkButton>
+          </>
+        }
+      >
+        <p>{siteConfig.supportingMessage}</p>
+        <p className="mt-4 text-base">
+          Many talented Nigerian professionals struggle with resumes that undersell them, finding legitimate opportunities, and feeling
+          unprepared for applications and interviews. {siteConfig.name} exists to help — practically and honestly.
         </p>
-      </div>
-      <div className="mt-12 grid gap-4 sm:grid-cols-2">
-        {PRINCIPLES.map(([t, b], i) => (
-          <div key={t} className={`card border-t-4 p-6 ${accent(i).top}`}>
-            <h2 className={`font-semibold ${accent(i).text}`}>{t}</h2>
-            <p className="mt-1 text-sm text-slate-600">{b}</p>
-          </div>
-        ))}
-      </div>
-      <div className="mt-12 flex flex-col gap-3 sm:flex-row">
-        <LinkButton href="/resume-optimization" size="lg">
-          Review my resume
-        </LinkButton>
-        <LinkButton href="/jobs" variant="outline" size="lg">
-          Browse jobs
-        </LinkButton>
-      </div>
-    </div>
+      </PageIntro>
+      <section className="container-page py-16">
+        <p className="eyebrow">What we stand for</p>
+        <ul className="mt-6 grid gap-3 sm:grid-cols-2">
+          {PRINCIPLES.map(({ icon: Icon, title, body }) => (
+            <li key={title} className="tile flex items-start gap-4 p-5">
+              <IconTile tone="neutral">
+                <Icon />
+              </IconTile>
+              <div>
+                <h2 className="font-semibold">{title}</h2>
+                <p className="mt-0.5 text-sm leading-relaxed text-slate-600">{body}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </>
   );
 }

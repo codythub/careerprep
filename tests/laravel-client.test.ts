@@ -374,3 +374,63 @@ describe("response normalisers (rename only, never invent)", () => {
     expect(rv.disclaimer).toBe("This automated rule-based review is guidance only.");
   });
 });
+
+describe("pricing, retry and review attempts", () => {
+  it("GET /pricing without a token and maps kobo, currency and availability", async () => {
+    const m = mockFetch(json({ data: { review: { amount: 600000, currency: "NGN", available: true } } }));
+    expect(await api.pricing()).toEqual({ amount: 600000, currency: "NGN", available: true });
+    const r = sent(m);
+    expect([r.method, r.url, r.headers.Authorization, r.credentials]).toEqual(["GET", `${BASE}/pricing`, undefined, "omit"]);
+  });
+
+  it("treats unconfigured pricing as unavailable (no invented amount)", async () => {
+    mockFetch(json({ data: { review: { amount: null, currency: null, available: false } } }));
+    expect(await api.pricing()).toEqual({ amount: null, currency: null, available: false });
+    mockFetch(json({ data: { review: { amount: 0, currency: "NGN", available: true } } }));
+    expect((await api.pricing()).available).toBe(false);
+  });
+
+  it("POST /reviews/{id}/retry with an empty body, or { resume_id } to switch resume", async () => {
+    const m = mockFetch(
+      json({ data: { id: 9, status: "completed", attempts: 2, max_attempts: 3, can_retry: false } }),
+      json({ data: { id: 9, status: "failed", attempts: 3, max_attempts: 3, can_retry: false } }),
+    );
+    const done = await api.retryReview("t", "9");
+    expect([sent(m, 0).method, sent(m, 0).url, sent(m, 0).body]).toEqual(["POST", `${BASE}/reviews/9/retry`, {}]);
+    expect([done.attempts, done.maxAttempts, done.canRetry]).toEqual([2, 3, false]);
+    await api.retryReview("t", "9", "4");
+    expect(sent(m, 1).body).toEqual({ resume_id: 4 });
+  });
+
+  it("maps can_retry strictly (only true enables retry)", () => {
+    expect(toReview({ data: { id: 1, status: "failed", can_retry: true } })!.canRetry).toBe(true);
+    expect(toReview({ data: { id: 1, status: "failed", can_retry: "yes" } })!.canRetry).toBe(false);
+    expect(toReview({ data: { id: 1, status: "failed" } })!.attempts).toBeNull();
+  });
+
+  it("returns expires_at from login", async () => {
+    mockFetch(json({ data: user, token: "tok", expires_at: "2026-10-20T10:00:00Z" }));
+    expect((await api.login({ email: "a@b.c", password: "p" })).expiresAt).toBe("2026-10-20T10:00:00Z");
+  });
+});
+
+describe("error messages", () => {
+  it("shows Laravel's message for a deliberate 5xx such as 503", async () => {
+    mockFetch(json({ message: "Payments are not configured." }, 503));
+    expect((await failure(api.createPayment("t", 1))).message).toBe("Payments are not configured.");
+  });
+
+  it("never shows a 500's message", async () => {
+    mockFetch(json({ message: "Server Error" }, 500));
+    expect((await failure(api.listReviews("t"))).message).toBe("Something went wrong on our side. Please try again shortly.");
+  });
+
+  it("reports a missing NEXT_PUBLIC_API_URL as a configuration error, not a network failure", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "");
+    const m = vi.spyOn(globalThis, "fetch");
+    const err = await failure(api.pricing());
+    expect(err.isConfigError).toBe(true);
+    expect(err.message).not.toMatch(/connection/i);
+    expect(m).not.toHaveBeenCalled();
+  });
+});

@@ -5,10 +5,11 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { api } from "@/lib/laravel/api";
 import { ApiError } from "@/lib/laravel/client";
-import { clearToken, getToken, onTokenChange } from "@/lib/laravel/token";
+import { clearToken, getToken, getTokenExpiry, onTokenChange } from "@/lib/laravel/token";
 import type { Candidate } from "@/lib/laravel/types";
 import { Alert } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/button";
+import { LogoMark } from "@/components/site/logo";
 
 type AuthState =
   | { status: "loading" }
@@ -73,6 +74,15 @@ export function CandidateAuthProvider({ children }: { children: ReactNode }) {
     router.replace(`/login?expired=1&callbackUrl=${encodeURIComponent(returnPath)}`);
   }, [router, returnPath]);
 
+  // Sign out proactively when the token reaches its expires_at (same outcome as a 401).
+  const authenticated = state.status === "authenticated";
+  useEffect(() => {
+    const expiry = authenticated ? getTokenExpiry() : null;
+    if (expiry === null) return;
+    const t = setTimeout(handleUnauthorized, Math.min(Math.max(0, expiry - Date.now()), 2 ** 31 - 1));
+    return () => clearTimeout(t);
+  }, [authenticated, handleUnauthorized]);
+
   const signOut = useCallback(async () => {
     const token = getToken();
     if (token) {
@@ -110,19 +120,30 @@ export function RequireCandidate({ children }: { children: (auth: { token: strin
   if (state.status === "authenticated") return <>{children({ token: state.token, user: state.user })}</>;
   if (state.status === "error") {
     return (
-      <div className="mx-auto max-w-md py-16">
-        <Alert tone="error" title="We couldn't load your account">
-          {state.message}
-        </Alert>
-        <Button className="mt-4" variant="outline" onClick={() => void refreshUser()}>
-          Try again
-        </Button>
+      <div className="flex min-h-dvh items-center justify-center bg-surface px-4">
+        <div className="w-full max-w-md">
+          <Alert
+            tone="error"
+            title="We couldn't load your account"
+            action={
+              <Button variant="outline" size="sm" onClick={() => void refreshUser()}>
+                Try again
+              </Button>
+            }
+          >
+            {state.message}
+          </Alert>
+        </div>
       </div>
     );
   }
   return (
-    <div className="flex min-h-dvh items-center justify-center" aria-busy="true">
-      <Loader2 className="size-8 animate-spin text-brand-600" aria-label="Loading" />
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-surface" aria-busy="true">
+      <LogoMark className="size-10" />
+      <Loader2 className="size-5 animate-spin text-brand-600" aria-hidden />
+      <span className="sr-only" role="status">
+        Loading your account…
+      </span>
     </div>
   );
 }

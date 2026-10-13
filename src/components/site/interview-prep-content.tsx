@@ -1,5 +1,4 @@
 import { CheckCircle2 } from "lucide-react";
-import { accent } from "@/lib/accents";
 
 /** Shared interview checklist (public page + dashboard). Practical guidance only. */
 export const INTERVIEW_SECTIONS = [
@@ -61,13 +60,13 @@ export const INTERVIEW_SECTIONS = [
 
 export function InterviewPrepContent() {
   return (
-    <div className="mt-10 grid gap-4 md:grid-cols-2">
-      {INTERVIEW_SECTIONS.map((section, i) => (
-        <section key={section.title} className={`card border-t-4 p-6 ${accent(i).top}`}>
-          <h2 className={`font-semibold ${accent(i).text}`}>{section.title}</h2>
-          <ul className="mt-3 space-y-2">
+    <div className="grid gap-3 md:grid-cols-2">
+      {INTERVIEW_SECTIONS.map((section) => (
+        <section key={section.title} className="tile p-5 sm:p-6">
+          <h2 className="font-semibold">{section.title}</h2>
+          <ul className="mt-4 space-y-2.5">
             {section.items.map((item) => (
-              <li key={item} className="flex gap-2 text-sm text-slate-700">
+              <li key={item} className="flex gap-2.5 text-sm leading-relaxed text-slate-700">
                 <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-600" aria-hidden />
                 {item}
               </li>

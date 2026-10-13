@@ -1,6 +1,6 @@
 "use client";
 
-import { PENDING_PAYMENT_STORAGE_KEY, TOKEN_STORAGE_KEY } from "@/lib/laravel/config";
+import { PENDING_PAYMENT_STORAGE_KEY, TOKEN_EXPIRY_STORAGE_KEY, TOKEN_STORAGE_KEY } from "@/lib/laravel/config";
 
 /**
  * Client-side storage for the Laravel Sanctum bearer token.
@@ -17,17 +17,35 @@ function storage(): Storage | null {
   }
 }
 
-export function getToken(): string | null {
-  return storage()?.getItem(TOKEN_STORAGE_KEY) ?? null;
+/** Expiry from login/register (`expires_at`), as epoch ms; null when Laravel issues non-expiring tokens. */
+export function getTokenExpiry(): number | null {
+  const raw = storage()?.getItem(TOKEN_EXPIRY_STORAGE_KEY);
+  const ms = raw ? Date.parse(raw) : NaN;
+  return Number.isFinite(ms) ? ms : null;
 }
 
-export function setToken(token: string) {
+/** The stored bearer token, or null when absent or past its `expires_at` (an expired token is cleared). */
+export function getToken(): string | null {
+  const token = storage()?.getItem(TOKEN_STORAGE_KEY) ?? null;
+  if (!token) return null;
+  const expiry = getTokenExpiry();
+  if (expiry !== null && expiry <= Date.now()) {
+    clearToken();
+    return null;
+  }
+  return token;
+}
+
+export function setToken(token: string, expiresAt?: string | null) {
   storage()?.setItem(TOKEN_STORAGE_KEY, token);
+  if (expiresAt) storage()?.setItem(TOKEN_EXPIRY_STORAGE_KEY, expiresAt);
+  else storage()?.removeItem(TOKEN_EXPIRY_STORAGE_KEY);
   window.dispatchEvent(new Event(TOKEN_EVENT));
 }
 
 export function clearToken() {
   storage()?.removeItem(TOKEN_STORAGE_KEY);
+  storage()?.removeItem(TOKEN_EXPIRY_STORAGE_KEY);
   storage()?.removeItem(PENDING_PAYMENT_STORAGE_KEY);
   if (typeof window !== "undefined") window.dispatchEvent(new Event(TOKEN_EVENT));
 }

@@ -1,10 +1,16 @@
+import type { CSSProperties } from "react";
 import { AlertTriangle, CheckCircle2, Info, Lightbulb } from "lucide-react";
 import type { Finding, Review, ReviewStatus } from "@/lib/laravel/types";
 import { Badge, Card, CardBody } from "@/components/ui/primitives";
+import { CategoryBar, ScoreRing, scoreBand } from "@/components/ui/score";
 import { cn } from "@/lib/format";
 
+/** Required wording; Laravel's own `disclaimer` is shown instead whenever it is sent. */
+export const REVIEW_DISCLAIMER =
+  "This automated rule-based review is guidance only. It is not an ATS score and does not guarantee hiring outcomes.";
+
 const STATUS: Record<ReviewStatus, { label: string; tone: "neutral" | "info" | "success" | "danger" | "warning" }> = {
-  pending: { label: "Queued", tone: "warning" },
+  pending: { label: "Processing", tone: "warning" },
   processing: { label: "Processing", tone: "info" },
   completed: { label: "Completed", tone: "success" },
   failed: { label: "Failed", tone: "danger" },
@@ -16,38 +22,38 @@ export function ReviewStatusBadge({ status }: { status: ReviewStatus }) {
   return <Badge tone={s.tone}>{s.label}</Badge>;
 }
 
-/** Colour band for a score as a share of its maximum. */
-function band(score: number, max: number) {
-  const pct = max > 0 ? score / max : 0;
-  if (pct >= 0.75) return { bar: "bg-emerald-500", text: "text-emerald-700", ring: "ring-emerald-200 bg-emerald-50" };
-  if (pct >= 0.5) return { bar: "bg-amber-500", text: "text-amber-700", ring: "ring-amber-200 bg-amber-50" };
-  return { bar: "bg-rose-500", text: "text-rose-700", ring: "ring-rose-200 bg-rose-50" };
-}
-
-/** Scores are shown out of the max Laravel sends; when none is sent they are read as percentages (0–100). */
+/** Scores are shown out of the max Laravel sends; when none is sent they are percentages (0–100). */
 const DEFAULT_MAX = 100;
 
 export function ScorePill({ score, max }: { score: number | null; max?: number | null }) {
   if (score === null) return <span className="text-sm text-slate-400">—</span>;
   const m = max ?? DEFAULT_MAX;
-  const b = band(score, m);
+  const b = scoreBand(score, m);
   return (
-    <span className={cn("inline-flex items-baseline gap-0.5 rounded-full px-2.5 py-0.5 text-sm font-semibold ring-1 tabular-nums", b.ring, b.text)}>
+    <span className={cn("inline-flex items-baseline gap-0.5 rounded-full px-2.5 py-0.5 text-sm font-semibold tabular-nums ring-1", b.soft, b.text)}>
       {Math.round(score)}
       <span className="text-xs font-medium opacity-70">/{m}</span>
     </span>
   );
 }
 
-function FindingList({ items, icon, tone }: { items: Finding[]; icon: "warn" | "tip" | "good"; tone: string }) {
-  const Icon = icon === "warn" ? AlertTriangle : icon === "tip" ? Lightbulb : CheckCircle2;
+const humanise = (slug: string) => {
+  const s = slug.replace(/[_-]+/g, " ").trim().replace(/\bats\b/gi, "ATS");
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
+
+/** Staggered reveal: each item fades up a little after the previous one. */
+const stagger = (i: number, baseMs = 0): CSSProperties => ({ animationDelay: `${baseMs + i * 70}ms` });
+
+function FindingList({ items, kind, baseDelay }: { items: Finding[]; kind: "weakness" | "recommendation"; baseDelay: number }) {
+  const Icon = kind === "weakness" ? AlertTriangle : Lightbulb;
   return (
     <ul className="space-y-3">
       {items.map((f, i) => (
-        <li key={i} className="flex gap-3">
-          <Icon className={cn("mt-0.5 size-4 shrink-0", tone)} aria-hidden />
+        <li key={i} className="flex animate-fade-up gap-3 rounded-xl bg-surface p-3.5" style={stagger(i, baseDelay)}>
+          <Icon className={cn("mt-0.5 size-4 shrink-0", kind === "weakness" ? "text-rose-500" : "text-amber-500")} aria-hidden />
           <div className="min-w-0 text-sm">
-            <p className="font-medium text-slate-900">
+            <p className="leading-relaxed font-medium text-slate-900">
               {f.title}
               {f.category && <span className="ml-2 text-xs font-normal text-slate-500">{f.category}</span>}
             </p>
@@ -59,79 +65,63 @@ function FindingList({ items, icon, tone }: { items: Finding[]; icon: "warn" | "
   );
 }
 
-/** Laravel's disclaimer for the review when it sends one, otherwise the site's standard wording. */
 export function HeuristicDisclaimer({ text }: { text?: string | null }) {
   return (
-    <p className="flex gap-2 rounded-lg bg-slate-50 p-4 text-xs leading-relaxed text-slate-600">
-      <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
-      {text ?? (
-        <>
-          This assessment is rule-based guidance generated automatically from your PDF. It is not a real applicant tracking
-          system (ATS) score, it does not represent any employer&apos;s view, and it does not guarantee interviews or employment.
-        </>
-      )}
+    <p className="flex gap-2.5 rounded-xl border border-line bg-surface p-4 text-xs leading-relaxed text-slate-600">
+      <Info className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden />
+      {text ?? REVIEW_DISCLAIMER}
     </p>
   );
 }
 
-/** Completed review: overall score, category scores, findings and recommendations. */
+/** Completed review: score ring, category bars, weaknesses and recommendations (animated in on mount). */
 export function ReviewResults({ review }: { review: Review }) {
   const max = review.overallMax ?? DEFAULT_MAX;
   const overall = review.overallScore;
-  const b = overall !== null ? band(overall, max) : null;
-  const pct = overall !== null ? Math.max(0, Math.min(100, (overall / max) * 100)) : 0;
+  const band = overall !== null ? scoreBand(overall, max) : null;
+  const categories = [...review.categoryScores].sort((a, b) => a.score / (a.max ?? DEFAULT_MAX) - b.score / (b.max ?? DEFAULT_MAX));
+  const weakest = categories[0];
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <Card className="border-t-4 border-t-emerald-500">
+      <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
+        <Card className="animate-fade-up">
           <CardBody className="flex flex-col items-center text-center">
-            <p className="text-sm font-medium text-slate-600">Overall score</p>
+            <p className="eyebrow">Overall score</p>
             {overall !== null ? (
-              <div
-                className={cn("mt-4 flex size-40 items-center justify-center rounded-full", b?.text)}
-                style={{ background: `conic-gradient(currentColor ${pct * 3.6}deg, rgb(226 232 240) 0deg)` }}
-                role="img"
-                aria-label={`Overall score ${Math.round(overall)} out of ${max}`}
-              >
-                <span className="flex size-32 flex-col items-center justify-center rounded-full bg-white">
-                  <span className={cn("text-4xl font-semibold tabular-nums", b?.text)}>{Math.round(overall)}</span>
-                  <span className="text-sm text-slate-500">out of {max}</span>
-                </span>
-              </div>
+              <>
+                <div className="mt-5">
+                  <ScoreRing score={overall} max={max} />
+                </div>
+                {band && <Badge tone={band.label === "Strong" ? "success" : band.label === "Fair" ? "warning" : "danger"} className="mt-5">{band.label}</Badge>}
+                {weakest && (
+                  <p className="mt-4 text-sm leading-relaxed text-slate-600">
+                    Biggest opportunity: <strong className="font-semibold text-slate-900">{humanise(weakest.name)}</strong>
+                  </p>
+                )}
+              </>
             ) : (
               <p className="mt-4 text-sm text-slate-500">No overall score was returned.</p>
             )}
-            {review.assessmentVersion && <p className="mt-4 text-xs text-slate-500">Assessment version {review.assessmentVersion}</p>}
+            {review.assessmentVersion && <p className="mt-4 text-xs text-slate-400">Assessment {review.assessmentVersion}</p>}
           </CardBody>
         </Card>
 
-        <Card>
+        <Card className="animate-fade-up" style={stagger(1)}>
           <CardBody>
-            <h2 className="font-semibold">Category scores</h2>
-            {review.categoryScores.length === 0 ? (
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="font-semibold">Category breakdown</h2>
+              <p className="text-xs text-slate-500">Lowest first</p>
+            </div>
+            {categories.length === 0 ? (
               <p className="mt-3 text-sm text-slate-500">No category scores were returned for this review.</p>
             ) : (
-              <ul className="mt-4 space-y-4">
-                {review.categoryScores.map((c) => {
-                  const m = c.max ?? DEFAULT_MAX;
-                  const cb = band(c.score, m);
-                  const w = Math.max(0, Math.min(100, (c.score / m) * 100));
-                  return (
-                    <li key={c.name}>
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <span className="font-medium capitalize">{c.name.replace(/[_-]+/g, " ")}</span>
-                        <span className={cn("font-semibold tabular-nums", cb.text)}>
-                          {Math.round(c.score)}
-                          <span className="font-normal text-slate-400">/{m}</span>
-                        </span>
-                      </div>
-                      <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100">
-                        <div className={cn("h-full rounded-full", cb.bar)} style={{ width: `${w}%` }} />
-                      </div>
-                    </li>
-                  );
-                })}
+              <ul className="mt-5 space-y-4">
+                {categories.map((c, i) => (
+                  <li key={c.name}>
+                    <CategoryBar name={humanise(c.name)} score={c.score} max={c.max ?? DEFAULT_MAX} delayMs={150 + i * 60} />
+                  </li>
+                ))}
               </ul>
             )}
           </CardBody>
@@ -139,35 +129,47 @@ export function ReviewResults({ review }: { review: Review }) {
       </div>
 
       {review.strengths.length > 0 && (
-        <Card className="border-t-4 border-t-teal-500">
+        <Card>
           <CardBody>
-            <h2 className="font-semibold text-teal-800">What&apos;s working</h2>
-            <div className="mt-4">
-              <FindingList items={review.strengths} icon="good" tone="text-teal-600" />
-            </div>
+            <h2 className="flex items-center gap-2 font-semibold">
+              <CheckCircle2 className="size-4 text-emerald-600" aria-hidden /> What&apos;s working
+            </h2>
+            <ul className="mt-4 space-y-2">
+              {review.strengths.map((f, i) => (
+                <li key={i} className="animate-fade-up text-sm text-slate-700" style={stagger(i, 200)}>
+                  {f.title}
+                </li>
+              ))}
+            </ul>
           </CardBody>
         </Card>
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="border-t-4 border-t-rose-500">
+        <Card>
           <CardBody>
-            <h2 className="font-semibold text-rose-800">Weaknesses</h2>
+            <h2 className="flex items-center gap-2 font-semibold">
+              <AlertTriangle className="size-4 text-rose-500" aria-hidden /> Weaknesses
+              <span className="ml-auto text-xs font-medium text-slate-500">{review.weaknesses.length}</span>
+            </h2>
             <div className="mt-4">
               {review.weaknesses.length ? (
-                <FindingList items={review.weaknesses} icon="warn" tone="text-rose-500" />
+                <FindingList items={review.weaknesses} kind="weakness" baseDelay={300} />
               ) : (
                 <p className="text-sm text-slate-500">No weaknesses were flagged.</p>
               )}
             </div>
           </CardBody>
         </Card>
-        <Card className="border-t-4 border-t-amber-500">
+        <Card>
           <CardBody>
-            <h2 className="font-semibold text-amber-800">Recommendations</h2>
+            <h2 className="flex items-center gap-2 font-semibold">
+              <Lightbulb className="size-4 text-amber-500" aria-hidden /> Recommendations
+              <span className="ml-auto text-xs font-medium text-slate-500">{review.recommendations.length}</span>
+            </h2>
             <div className="mt-4">
               {review.recommendations.length ? (
-                <FindingList items={review.recommendations} icon="tip" tone="text-amber-500" />
+                <FindingList items={review.recommendations} kind="recommendation" baseDelay={400} />
               ) : (
                 <p className="text-sm text-slate-500">No recommendations were returned.</p>
               )}

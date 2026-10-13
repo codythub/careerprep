@@ -1,15 +1,17 @@
-import { ENDPOINTS, RESUME_UPLOAD_FIELD, apiBaseUrl } from "@/lib/laravel/config";
-import { ApiError, laravel, toApiError } from "@/lib/laravel/client";
+import { ENDPOINTS, RESUME_UPLOAD_FIELD } from "@/lib/laravel/config";
+import { ApiError, laravel, resolveBaseUrl, toApiError } from "@/lib/laravel/client";
 import {
   toAuth,
   toCandidate,
   toPage,
   toPayment,
+  toPricing,
   toResume,
   toReview,
   type Candidate,
   type Page,
   type Payment,
+  type Pricing,
   type Resume,
   type Review,
 } from "@/lib/laravel/types";
@@ -30,7 +32,12 @@ export type ProfileInput = { name: string; email: string; phone: string | null; 
 
 /** Typed client for the Laravel CareerPrep API (runs in the browser; bearer token, no cookies). */
 export const api = {
-  // ── Auth: POST register/login → { data: User, token } ──────────────────────
+  // ── Pricing: public, no token ──────────────────────────────────────────────
+  async pricing(): Promise<Pricing> {
+    return required(toPricing(await laravel(ENDPOINTS.pricing)), "pricing");
+  },
+
+  // ── Auth: POST register/login → { data: User, token, expires_at } ──────────
   async register(input: { name: string; email: string; password: string; password_confirmation: string }) {
     return required(toAuth(await laravel(ENDPOINTS.register, { method: "POST", json: input })), "registration");
   },
@@ -97,6 +104,11 @@ export const api = {
     if (resumeId !== undefined) query.set("resume_id", String(numericId(resumeId, "resume")));
     return toPage(await laravel(`${ENDPOINTS.reviews}?${query}`, { token }), toReview);
   },
+  /** POST /reviews/{id}/retry — reprocesses a failed review (optionally with another of the candidate's resumes). */
+  async retryReview(token: string, id: string, resumeId?: string): Promise<Review> {
+    const json = resumeId !== undefined ? { resume_id: numericId(resumeId, "resume") } : {};
+    return required(toReview(await laravel(ENDPOINTS.reviewRetry(id), { method: "POST", token, json })), "review");
+  },
   async getReview(token: string, id: string): Promise<Review> {
     return required(toReview(await laravel(ENDPOINTS.review(id), { token })), "review");
   },
@@ -119,10 +131,16 @@ export function uploadResume(
   onProgress: (percent: number) => void,
 ): Promise<Resume | null> {
   return new Promise((resolve, reject) => {
+    let base: string;
+    try {
+      base = resolveBaseUrl();
+    } catch (err) {
+      return reject(err);
+    }
     const body = new FormData();
     body.append(RESUME_UPLOAD_FIELD, file, file.name);
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", `${apiBaseUrl()}${ENDPOINTS.resumes}`);
+    xhr.open("POST", `${base}${ENDPOINTS.resumes}`);
     xhr.withCredentials = false;
     xhr.setRequestHeader("Accept", "application/json");
     xhr.setRequestHeader("Authorization", `Bearer ${token}`);

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { Mail } from "lucide-react";
+import { CheckCircle2, Mail } from "lucide-react";
 import { siteConfig } from "@/config/site";
 import { LinkButton } from "@/components/ui/button";
+import { PageIntro } from "@/components/site/page-intro";
 
 export const metadata: Metadata = {
   title: "Post a Job",
@@ -25,18 +26,19 @@ const INCLUDE = [
 export default function PostJobPage() {
   const subject = encodeURIComponent("Job submission");
   return (
-    <div className="container-page py-10 sm:py-14">
-      <div className="mx-auto max-w-3xl">
-        <h1 className="text-3xl font-semibold sm:text-4xl">Post a job</h1>
-        <p className="mt-2 text-slate-600">
-          Online job submissions aren&apos;t available yet. Email your role to our team instead — nothing is published until
-          we&apos;ve reviewed it.
-        </p>
-        <div className="mt-8 card p-5 sm:p-8">
+    <>
+      <PageIntro eyebrow="For employers" title="Post a job">
+        Online job submissions aren&apos;t available yet. Email your role to our team instead — nothing is published until we&apos;ve
+        reviewed it.
+      </PageIntro>
+      <div className="container-page py-10 sm:py-14">
+        <div className="card max-w-3xl p-5 sm:p-8">
           <h2 className="text-lg font-semibold">What to include</h2>
-          <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-slate-700">
+          <ul className="mt-4 space-y-2.5">
             {INCLUDE.map((item) => (
-              <li key={item}>{item}</li>
+              <li key={item} className="flex gap-2.5 text-sm text-slate-700">
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-600" aria-hidden /> {item}
+              </li>
             ))}
           </ul>
           <LinkButton href={`mailto:${siteConfig.supportEmail}?subject=${subject}`} className="mt-6">
@@ -45,6 +47,6 @@ export default function PostJobPage() {
           <p className="mt-4 text-xs text-slate-500">Applicants must never be asked to pay any fee. We decline listings that do.</p>
         </div>
       </div>
-    </div>
+    </>
   );
 }

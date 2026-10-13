@@ -77,11 +77,13 @@ Laravel's CORS only allows `FRONTEND_URL`, so a Preview deployment can't call th
 
 | Path | Purpose |
 |---|---|
-| `src/config/site.ts` | Brand and business config, including the **display-only** review price (keep it in sync with Laravel `PAYSTACK_REVIEW_AMOUNT`) |
+| `src/config/site.ts` | Brand and business config. The review price is **not** here: it comes from Laravel `GET /pricing` (`src/lib/laravel/use-pricing.ts`) |
 | `src/app/(site)` | Public pages (home, resume review, guides, jobs notice, employers, legal) |
 | `src/app/(auth)` | Sign in and registration (Laravel) |
 | `src/app/dashboard` | Candidate dashboard: resumes, payment callback, reviews, profile (Laravel) |
 | `src/lib/laravel` | API client: the only place endpoint paths are defined |
+| `src/lib/review-progress.ts` | Staged review-progress steps, tips and timing (used by Start review, payment callback and Retry) |
+| `src/components/ui` | Design-system primitives; tokens live in `src/app/globals.css` (`@theme`) |
 | `src/content/guides.ts` | Career guide content |
 | `tests/` | Vitest: contract unit tests and the opt-in live API test |
 

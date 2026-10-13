@@ -17,15 +17,15 @@ export default function OpengraphImage() {
           justifyContent: "space-between",
           padding: 72,
           background: "#ffffff",
-          borderTop: "16px solid #0b5d3b",
+          borderTop: "16px solid #2563eb",
           fontFamily: "sans-serif",
         }}
       >
-        <div style={{ fontSize: 34, fontWeight: 700, color: "#0b5d3b" }}>{siteConfig.name}</div>
+        <div style={{ fontSize: 34, fontWeight: 700, color: "#2563eb" }}>{siteConfig.name}</div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={{ fontSize: 84, fontWeight: 700, color: "#0f172a", lineHeight: 1.05 }}>{siteConfig.tagline}</div>
           <div style={{ marginTop: 28, fontSize: 32, color: "#475569", maxWidth: 980 }}>
-            Resume optimization, remote jobs and career guidance for Nigerian professionals.
+            Automated resume reviews and practical career guidance for Nigerian professionals.
           </div>
         </div>
         <div style={{ fontSize: 26, color: "#64748b" }}>{siteConfig.brandMessage}</div>

@@ -30,8 +30,8 @@ export function LoginForm({ callbackUrl, children, className }: { callbackUrl?: 
     if (!password) fieldErrors.password = ["Enter your password."];
     if (Object.keys(fieldErrors).length) return { ok: false, fieldErrors, values: { email } };
     try {
-      const { token } = await api.login({ email, password });
-      setToken(token);
+      const { token, expiresAt } = await api.login({ email, password });
+      setToken(token, expiresAt);
       router.replace(to);
       return { ok: true };
     } catch (err) {
@@ -50,7 +50,8 @@ export function RegisterForm({ children, className }: { children: ReactNode; cla
   const router = useRouter();
   useRedirectIfSignedIn();
   async function action(_prev: ActionState, fd: FormData): Promise<ActionState> {
-    const values = { name: text(fd, "name"), email: text(fd, "email") };
+    // Echoed back on errors (never the passwords).
+    const values = { name: text(fd, "name"), email: text(fd, "email"), acceptTerms: fd.get("acceptTerms") === "on" ? "on" : "" };
     const password = String(fd.get("password") ?? "");
     const password_confirmation = String(fd.get("password_confirmation") ?? "");
     const fieldErrors: Record<string, string[]> = {};
@@ -61,8 +62,8 @@ export function RegisterForm({ children, className }: { children: ReactNode; cla
     if (fd.get("acceptTerms") !== "on") fieldErrors.acceptTerms = ["Please accept the Terms and Privacy Policy."];
     if (Object.keys(fieldErrors).length) return { ok: false, fieldErrors, values };
     try {
-      const { token } = await api.register({ ...values, password, password_confirmation });
-      setToken(token);
+      const { token, expiresAt } = await api.register({ name: values.name, email: values.email, password, password_confirmation });
+      setToken(token, expiresAt);
       router.replace("/dashboard");
       return { ok: true };
     } catch (err) {

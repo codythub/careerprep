@@ -2,16 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Download, Loader2, XCircle } from "lucide-react";
+import { ArrowLeft, Clock, Download, LifeBuoy, Loader2, XCircle } from "lucide-react";
 import { formatDateTime } from "@/lib/format";
 import { api } from "@/lib/laravel/api";
 import { ApiError } from "@/lib/laravel/client";
+import type { Review } from "@/lib/laravel/types";
 import { Button, LinkButton } from "@/components/ui/button";
-import { Alert, Card, CardBody, PageHeader } from "@/components/ui/primitives";
-import { AutoRefresh } from "@/components/candidate/actions";
+import { Alert, Card, CardBody, PageHeader, Skeleton } from "@/components/ui/primitives";
+import { AutoRefresh, RetryReviewButton } from "@/components/candidate/actions";
 import { HeuristicDisclaimer, ReviewResults, ReviewStatusBadge } from "@/components/candidate/review-view";
 import { useApi, useCandidateAuth } from "@/components/candidate/auth";
-import { Loading } from "@/components/candidate/views/loading";
 
 /** GET /reviews/{review}/download with the bearer token, saved via a temporary object URL. */
 function DownloadReportButton({ reviewId }: { reviewId: string }) {
@@ -42,13 +42,13 @@ function DownloadReportButton({ reviewId }: { reviewId: string }) {
   }
 
   return (
-    <span className="flex flex-col items-end">
-      <Button variant="outline" size="sm" onClick={() => void download()} disabled={busy} aria-disabled={busy}>
-        {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Download className="size-4" aria-hidden />}
+    <span className="flex flex-col items-start sm:items-end">
+      <Button variant="outline" onClick={() => void download()} loading={busy}>
+        {!busy && <Download className="size-4" aria-hidden />}
         {busy ? "Preparing…" : "Download report"}
       </Button>
       {error && (
-        <span role="alert" className="mt-1 text-xs text-red-600">
+        <span role="alert" className="mt-1 text-xs font-medium text-red-700">
           {error}
         </span>
       )}
@@ -56,74 +56,123 @@ function DownloadReportButton({ reviewId }: { reviewId: string }) {
   );
 }
 
+const Back = () => (
+  <Link href="/dashboard/reviews" className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900">
+    <ArrowLeft className="size-4" aria-hidden /> Review history
+  </Link>
+);
+
 export function ReviewDetailView({ id }: { id: string }) {
   const review = useApi((t) => api.getReview(t, id), [id]);
-  const back = (
-    <Link href="/dashboard/reviews" className="text-sm text-slate-500 hover:text-slate-900">
-      ← Review history
-    </Link>
-  );
+  // A successful retry replaces the loaded review in place.
+  const [retried, setRetried] = useState<Review | null>(null);
+  const rv = retried?.id === id ? retried : review.data;
 
-  if (review.loading && !review.data) {
+  if (review.loading && !rv) {
     return (
       <>
-        {back}
-        <Loading />
+        <Back />
+        <div className="mt-6 space-y-4" aria-busy="true">
+          <Skeleton className="h-9 w-2/3 sm:w-1/3" />
+          <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
+            <Skeleton className="h-72" />
+            <Skeleton className="h-72" />
+          </div>
+          <span className="sr-only" role="status">
+            Loading review…
+          </span>
+        </div>
       </>
     );
   }
-  if (!review.data) {
+  if (!rv) {
     return (
       <>
-        {back}
-        <Alert tone="error" title={review.status === 404 ? "Review not found" : "We couldn't load this review"} className="mt-4">
+        <Back />
+        <Alert tone="error" title={review.status === 404 ? "Review not found" : "We couldn't load this review"} className="mt-6"
+          action={review.status === 404 ? undefined : <Button variant="outline" size="sm" onClick={review.reload}>Try again</Button>}>
           {review.status === 404 ? "This review doesn't exist or isn't yours." : review.error}
         </Alert>
       </>
     );
   }
-  const rv = review.data;
   const inProgress = rv.status === "pending" || rv.status === "processing";
+  const attempts = rv.attempts && rv.maxAttempts ? `Attempt ${rv.attempts} of ${rv.maxAttempts}` : null;
 
   return (
     <>
-      {back}
-      <PageHeader
-        title={rv.resumeName ?? "Resume assessment"}
-        description={`Started ${formatDateTime(rv.createdAt)}${rv.completedAt ? ` · completed ${formatDateTime(rv.completedAt)}` : ""}`}
-        actions={
-          <div className="flex items-center gap-2">
-            <ReviewStatusBadge status={rv.status} />
-            {rv.status === "completed" && <DownloadReportButton reviewId={rv.id} />}
-          </div>
-        }
-      />
+      <Back />
+      <div className="mt-4">
+        <PageHeader
+          eyebrow="Resume review"
+          title={rv.resumeName ?? "Resume assessment"}
+          description={
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <ReviewStatusBadge status={rv.status} />
+              <span>
+                {formatDateTime(rv.completedAt ?? rv.createdAt)}
+                {attempts && rv.status !== "completed" ? ` · ${attempts}` : ""}
+              </span>
+            </span>
+          }
+          actions={rv.status === "completed" ? <DownloadReportButton reviewId={rv.id} /> : undefined}
+        />
+      </div>
 
       {inProgress && (
         <Card>
           <CardBody className="flex flex-col items-center py-12 text-center">
             <AutoRefresh onTick={review.reload} />
-            <Loader2 className="size-10 animate-spin text-brand-600" aria-hidden />
-            <h2 className="mt-4 text-lg font-semibold">Analysing your resume…</h2>
-            <p className="mt-1 max-w-md text-sm text-slate-600" aria-live="polite">
-              We&apos;re checking structure, content and keywords. This page updates automatically — you can also leave and come back
-              from Review History.
+            <Loader2 className="size-9 animate-spin text-brand-600" aria-hidden />
+            <h2 className="mt-4 text-lg font-semibold">Your review is still being processed</h2>
+            <p className="mt-1 max-w-md text-sm leading-relaxed text-slate-600" aria-live="polite">
+              This page checks again automatically. You can leave and come back from Review history.
             </p>
+            {rv.canRetry && (
+              <div className="mt-6 w-full max-w-md">
+                <p className="mb-3 text-sm text-slate-600">It&apos;s taking longer than expected. You can retry it now.</p>
+                <RetryReviewButton review={rv} onRetried={setRetried} embedded />
+              </div>
+            )}
           </CardBody>
         </Card>
       )}
 
       {rv.status === "failed" && (
         <Card>
-          <CardBody className="flex flex-col items-center py-10 text-center">
-            <XCircle className="size-10 text-rose-500" aria-hidden />
-            <h2 className="mt-4 text-lg font-semibold">This review couldn&apos;t be completed</h2>
-            <p className="mt-1 max-w-md text-sm text-slate-600">
-              {rv.failureReason ?? "The assessment failed to process. Please contact support so we can help."}
-            </p>
-            <LinkButton href="/contact" variant="outline" className="mt-6">
-              Contact support
-            </LinkButton>
+          <CardBody className="py-8 sm:py-10">
+            <div className="mx-auto max-w-lg text-center">
+              <span className="mx-auto flex size-12 items-center justify-center rounded-xl bg-rose-50 text-rose-600 ring-1 ring-rose-200">
+                <XCircle className="size-6" aria-hidden />
+              </span>
+              <h2 className="mt-4 text-lg font-semibold">We couldn&apos;t finish this review</h2>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                Sorry about that — it isn&apos;t something you did wrong.{" "}
+                {rv.failureReason ?? "The assessment couldn't be completed."}
+              </p>
+            </div>
+            <div className="mx-auto mt-6 max-w-md">
+              {rv.canRetry ? (
+                <>
+                  <p className="mb-4 text-center text-sm text-slate-600">
+                    If your PDF is a scan or image, upload a text-based export first, then choose it below.
+                  </p>
+                  <RetryReviewButton review={rv} onRetried={setRetried} embedded />
+                </>
+              ) : (
+                <Alert
+                  tone="info"
+                  title="No retries left"
+                  action={
+                    <LinkButton href="/contact" variant="outline" size="sm">
+                      <LifeBuoy className="size-4" aria-hidden /> Contact support
+                    </LinkButton>
+                  }
+                >
+                  Please contact support with this review&apos;s details. Refunds are handled manually by our team.
+                </Alert>
+              )}
+            </div>
           </CardBody>
         </Card>
       )}
@@ -133,6 +182,7 @@ export function ReviewDetailView({ id }: { id: string }) {
       {rv.status === "unknown" && (
         <>
           <Alert tone="warning" title="Unrecognised review status">
+            <Clock className="mr-1 inline size-4" aria-hidden />
             The service returned this review without a status we recognise, so results can&apos;t be shown yet.
           </Alert>
           <div className="mt-6">

@@ -3,15 +3,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle2, Clock, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock, ShieldCheck, XCircle } from "lucide-react";
 import { api } from "@/lib/laravel/api";
 import { ApiError } from "@/lib/laravel/client";
 import { getPendingPayment } from "@/lib/laravel/token";
 import { Button, LinkButton } from "@/components/ui/button";
-import { Alert, Card, CardBody } from "@/components/ui/primitives";
+import { Alert } from "@/components/ui/primitives";
+import { ProgressBar } from "@/components/ui/progress";
 import { StartReviewButton } from "@/components/candidate/actions";
 import { useApi } from "@/components/candidate/auth";
-import { Loading } from "@/components/candidate/views/loading";
 
 /** What identifies the payment to verify: Paystack's `?reference=`, else the ID saved before checkout. */
 type Lookup = { reference: string } | { paymentId: number };
@@ -35,14 +35,14 @@ export function PaymentCallbackView() {
     return () => clearTimeout(t);
   }, [reference]);
 
-  if (lookup === undefined) return <Loading label="Checking your payment…" />;
+  if (lookup === undefined) return <Verifying />;
   if (!lookup) return <NoPayment />;
   return <Verify lookup={lookup} />;
 }
 
 function NoPayment() {
   return (
-    <Shell icon={<XCircle className="size-10 text-rose-500" />} title="No payment to confirm">
+    <Shell icon={<XCircle className="size-6 text-rose-600" />} title="No payment to confirm" tone="danger">
       <p>We couldn&apos;t identify the payment to verify. If you were charged, contact support with your Paystack receipt.</p>
       <LinkButton href="/dashboard/resumes" className="mt-6">Back to my resumes</LinkButton>
     </Shell>
@@ -70,11 +70,11 @@ function Verify({ lookup }: { lookup: Lookup }) {
   const key = "reference" in lookup ? lookup.reference : lookup.paymentId;
   const result = useApi((t) => findAndVerify(t, lookup), [key]);
 
-  if (result.loading) return <Loading label="Confirming your payment with CareerPrep…" />;
+  if (result.loading) return <Verifying />;
 
   if (result.error) {
     return (
-      <Shell icon={<Clock className="size-10 text-amber-500" />} title="We couldn't confirm your payment yet">
+      <Shell icon={<Clock className="size-6 text-amber-600" />} title="We couldn't confirm your payment yet" tone="warning">
         <Alert tone="warning" className="text-left">{result.error}</Alert>
         <p className="mt-4">If you completed payment, wait a moment and check again — confirmation can take a few seconds.</p>
         <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
@@ -91,7 +91,7 @@ function Verify({ lookup }: { lookup: Lookup }) {
 
   if (notPaid !== null || payment.status !== "verified") {
     return (
-      <Shell icon={<XCircle className="size-10 text-rose-500" />} title="Payment not completed">
+      <Shell icon={<XCircle className="size-6 text-rose-600" />} title="Payment not completed" tone="danger">
         <p>CareerPrep could not confirm this payment. You have not been given a review for this attempt.</p>
         {notPaid && <p className="mt-2 text-sm">{notPaid}</p>}
         <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
@@ -104,7 +104,7 @@ function Verify({ lookup }: { lookup: Lookup }) {
 
   if (payment.entitlementStatus === "consumed") {
     return (
-      <Shell icon={<CheckCircle2 className="size-10 text-emerald-600" />} title="Payment already used">
+      <Shell icon={<CheckCircle2 className="size-6 text-emerald-600" />} title="Payment already used" tone="success">
         <p>This payment was verified and its review has already been started.</p>
         <div className="mt-6 flex justify-center">
           <LinkButton href={payment.reviewId ? `/dashboard/reviews/${payment.reviewId}` : "/dashboard/reviews"}>Open the review</LinkButton>
@@ -114,27 +114,54 @@ function Verify({ lookup }: { lookup: Lookup }) {
   }
 
   return (
-    <Shell icon={<CheckCircle2 className="size-10 text-emerald-600" />} title="Payment confirmed">
-      <p>Your payment was verified by CareerPrep. Your resume review is unlocked.</p>
+    <Shell icon={<CheckCircle2 className="size-6 text-emerald-600" />} title="Payment confirmed" tone="success">
+      <p>CareerPrep verified your payment with Paystack. Your resume review is unlocked.</p>
       {payment.reference && <p className="mt-1 text-xs text-slate-500">Reference: {payment.reference}</p>}
-      <div className="mt-6 flex justify-center">
-        <StartReviewButton paymentId={payment.id} />
+      <div className="mt-6">
+        <StartReviewButton paymentId={payment.id} embedded />
       </div>
     </Shell>
   );
 }
 
-function Shell({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+/** Shown while Laravel checks the payment with Paystack (the browser never decides it). */
+function Verifying() {
   return (
-    <div className="mx-auto max-w-lg py-6">
-      <Link href="/dashboard/resumes" className="text-sm text-slate-500 hover:text-slate-900">← My resumes</Link>
-      <Card className="mt-4">
-        <CardBody className="text-center text-slate-600">
-          <div className="flex justify-center">{icon}</div>
-          <h1 className="mt-4 text-2xl font-semibold text-slate-950">{title}</h1>
-          <div className="mt-3">{children}</div>
-        </CardBody>
-      </Card>
+    <Shell icon={<ShieldCheck className="size-6 text-brand-600" />} title="Verifying your payment">
+      <p aria-live="polite">CareerPrep is confirming your payment with Paystack. This usually takes a few seconds.</p>
+      <ProgressBar label="Verifying payment" className="mx-auto mt-6 max-w-xs" />
+    </Shell>
+  );
+}
+
+const SHELL_TONES = {
+  neutral: "bg-brand-50 ring-brand-100",
+  success: "bg-emerald-50 ring-emerald-200",
+  warning: "bg-amber-50 ring-amber-200",
+  danger: "bg-rose-50 ring-rose-200",
+};
+
+function Shell({
+  icon,
+  title,
+  tone = "neutral",
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  tone?: keyof typeof SHELL_TONES;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mx-auto max-w-xl">
+      <Link href="/dashboard/resumes" className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900">
+        <ArrowLeft className="size-4" aria-hidden /> My resumes
+      </Link>
+      <div className="card mt-4 p-6 text-center text-slate-600 sm:p-8">
+        <span className={`mx-auto flex size-12 items-center justify-center rounded-xl ring-1 ${SHELL_TONES[tone]}`}>{icon}</span>
+        <h1 className="mt-4 text-2xl font-semibold text-slate-950">{title}</h1>
+        <div className="mt-3 text-sm leading-relaxed sm:text-base">{children}</div>
+      </div>
     </div>
   );
 }

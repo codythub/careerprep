@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { CheckCircle2, ClipboardCheck, ShieldCheck, Users } from "lucide-react";
 import { siteConfig } from "@/config/site";
 import { LinkButton } from "@/components/ui/button";
-import { SectionHeading } from "@/components/ui/primitives";
-import { accent } from "@/lib/accents";
+import { IconTile, SectionHeading } from "@/components/ui/primitives";
+import { PageIntro } from "@/components/site/page-intro";
 
 export const metadata: Metadata = {
   title: "Hire Nigerian Professionals — Post a Job",
@@ -27,40 +27,37 @@ const RULES = [
 export default function EmployersPage() {
   return (
     <>
-      <section className="border-b border-slate-100 bg-gradient-to-b from-brand-50/60 to-white">
-        <div className="container-page py-14 sm:py-20">
-          <div className="max-w-3xl">
-            <p className="text-sm font-semibold text-brand-700">For employers</p>
-            <h1 className="mt-2 text-4xl font-semibold leading-tight sm:text-5xl">Are you hiring?</h1>
-            <p className="mt-5 text-lg leading-relaxed text-slate-600">
-              Share your remote, hybrid or on-site role with Nigerian professionals on {siteConfig.name}. Submitting a job is
-              free and every listing will be reviewed before it&apos;s published.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <LinkButton href="/employers/post-job" size="lg">
-                Post a job
-              </LinkButton>
-              <LinkButton href={`mailto:${siteConfig.supportEmail}`} variant="outline" size="lg">
-                Contact us
-              </LinkButton>
-            </div>
-          </div>
-        </div>
-      </section>
+      <PageIntro
+        eyebrow="For employers"
+        title="Are you hiring?"
+        actions={
+          <>
+            <LinkButton href="/employers/post-job" size="lg">
+              Post a job
+            </LinkButton>
+            <LinkButton href={`mailto:${siteConfig.supportEmail}`} variant="outline" size="lg">
+              Contact us
+            </LinkButton>
+          </>
+        }
+      >
+        Share your remote, hybrid or on-site role with Nigerian professionals on {siteConfig.name}. Submitting a job is free and every
+        listing will be reviewed before it&apos;s published.
+      </PageIntro>
       <section className="container-page py-16">
-        <div className="grid gap-4 md:grid-cols-3">
-          {POINTS.map(({ icon: Icon, ...p }, i) => (
-            <div key={p.title} className={`card border-t-4 p-6 ${accent(i).top}`}>
-              <span className={`flex size-11 items-center justify-center rounded-xl ${accent(i).icon}`}>
-                <Icon className="size-6" aria-hidden />
-              </span>
+        <ul className="grid gap-3 md:grid-cols-3">
+          {POINTS.map(({ icon: Icon, ...p }) => (
+            <li key={p.title} className="tile p-5 sm:p-6">
+              <IconTile>
+                <Icon />
+              </IconTile>
               <h2 className="mt-4 font-semibold">{p.title}</h2>
-              <p className="mt-1 text-sm text-slate-600">{p.body}</p>
-            </div>
+              <p className="mt-1 text-sm leading-relaxed text-slate-600">{p.body}</p>
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
-      <section className="bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50">
+      <section className="border-t border-line bg-surface">
         <div className="container-page grid gap-10 py-16 lg:grid-cols-2">
           <SectionHeading
             eyebrow="How it works"
@@ -71,7 +68,7 @@ export default function EmployersPage() {
             <h3 className="font-semibold">Listing requirements</h3>
             <ul className="mt-4 space-y-3">
               {RULES.map((r) => (
-                <li key={r} className="flex gap-2 text-sm text-slate-700">
+                <li key={r} className="flex gap-2.5 text-sm text-slate-700">
                   <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-600" aria-hidden /> {r}
                 </li>
               ))}

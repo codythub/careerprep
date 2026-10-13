@@ -56,12 +56,27 @@ export function toCandidate(body: unknown): Candidate | null {
   };
 }
 
-/** Auth responses (register/login) are `{ data: User, token: string }`. */
-export function toAuth(body: unknown): { token: string; user: Candidate | null } | null {
+/** Auth responses (register/login) are `{ data: User, token: string, expires_at: string | null }`. */
+export function toAuth(body: unknown): { token: string; user: Candidate | null; expiresAt: string | null } | null {
   if (!isObj(body)) return null;
   const token = str(body.token);
   if (!token) return null;
-  return { token, user: toCandidate(body.data) };
+  return { token, user: toCandidate(body.data), expiresAt: str(body.expires_at) };
+}
+
+// ── Pricing ─────────────────────────────────────────────────────────────────
+
+/** Price of one review. `amount` is in the smallest unit (kobo); unavailable means checkout is off. */
+export type Pricing = { amount: number | null; currency: string | null; available: boolean };
+
+export function toPricing(body: unknown): Pricing | null {
+  const o = unwrap(body);
+  const review = isObj(o) && isObj(o.review) ? o.review : null;
+  if (!review) return null;
+  const amount = num(review.amount);
+  const currency = str(review.currency);
+  // Only offer checkout when Laravel says so AND sent a usable price.
+  return { amount, currency, available: review.available === true && amount !== null && amount > 0 };
 }
 
 // ── Pagination (Laravel: data, links, meta) ─────────────────────────────────
@@ -185,6 +200,10 @@ export type Review = {
   failureReason: string | null;
   /** Laravel's own disclaimer text for the assessment, when sent. */
   disclaimer: string | null;
+  /** Processing attempts so far, the configured maximum, and whether a retry is allowed now. */
+  attempts: number | null;
+  maxAttempts: number | null;
+  canRetry: boolean;
 };
 
 function toFindings(v: unknown): Finding[] {
@@ -253,5 +272,8 @@ export function toReview(raw: unknown): Review | null {
     completedAt: str(pick(o, "completed_at", "processed_at")),
     failureReason: str(pick(o, "failure_reason", "error", "error_message")),
     disclaimer: str(o.disclaimer),
+    attempts: num(o.attempts),
+    maxAttempts: num(o.max_attempts),
+    canRetry: o.can_retry === true,
   };
 }

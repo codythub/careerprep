@@ -1,11 +1,3 @@
-import { siteConfig } from "@/config/site";
-
-export function formatNaira(kobo: number): string {
-  return `${siteConfig.currencySymbol}${(kobo / 100).toLocaleString("en-NG", {
-    maximumFractionDigits: 0,
-  })}`;
-}
-
 export function formatDate(date: Date | string | null | undefined): string {
   if (!date) return "—";
   return new Date(date).toLocaleDateString("en-GB", {

@@ -2,7 +2,7 @@
 
 import { createContext, useActionState, useContext, useId, type ComponentProps, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
-import { Loader2 } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { initialActionState, type ActionState } from "@/lib/action-state";
 import { buttonClass, type ButtonVariant } from "@/components/ui/button";
 import { Alert } from "@/components/ui/primitives";
@@ -36,7 +36,7 @@ export function ActionForm({
     <FormStateContext.Provider value={state}>
       <form action={formAction} className={className} encType={encType} noValidate>
         {!hideMessages && state.message && (
-          <Alert tone={state.ok ? "success" : "error"} className="mb-4">
+          <Alert tone={state.ok ? "success" : "error"} className="mb-5">
             {state.message}
           </Alert>
         )}
@@ -56,7 +56,7 @@ export function FormMessage({ className }: { className?: string }) {
   const state = useContext(FormStateContext);
   if (!state.message) return null;
   return (
-    <p role={state.ok ? "status" : "alert"} className={cn("mt-1 text-xs", state.ok ? "text-emerald-700" : "text-red-600", className)}>
+    <p role={state.ok ? "status" : "alert"} className={cn("mt-1 text-xs font-medium", state.ok ? "text-emerald-700" : "text-red-700", className)}>
       {state.message}
     </p>
   );
@@ -70,7 +70,7 @@ function useField(name: string, defaultValue?: string | number | null) {
 }
 
 const inputCls =
-  "block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base text-slate-900 shadow-xs placeholder:text-slate-400 focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/20 disabled:bg-slate-50 sm:text-sm aria-[invalid=true]:border-red-400";
+  "block w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-base text-slate-900 shadow-xs transition-[border-color,box-shadow] duration-150 placeholder:text-slate-400 hover:border-slate-300 focus:border-brand-600 focus:ring-4 focus:ring-brand-600/15 focus:outline-none disabled:bg-surface disabled:text-slate-500 sm:text-sm aria-[invalid=true]:border-red-500 aria-[invalid=true]:focus:ring-red-500/15";
 
 function FieldShell({
   id,
@@ -91,7 +91,12 @@ function FieldShell({
     <div className="space-y-1.5">
       <label htmlFor={id} className="block text-sm font-medium text-slate-800">
         {label}
-        {required && <span className="text-red-600"> *</span>}
+        {required && (
+          <span className="text-red-600" aria-hidden>
+            {" "}
+            *
+          </span>
+        )}
       </label>
       {children}
       {hint && !errors?.length && (
@@ -100,7 +105,8 @@ function FieldShell({
         </p>
       )}
       {errors?.length ? (
-        <p id={`${id}-error`} className="text-xs text-red-600">
+        <p id={`${id}-error`} className="flex items-start gap-1.5 text-xs font-medium text-red-700">
+          <AlertCircle className="mt-px size-3.5 shrink-0" aria-hidden />
           {errors[0]}
         </p>
       ) : null}
@@ -228,14 +234,14 @@ export function CheckboxField({
           name={name}
           defaultChecked={checked}
           aria-invalid={errors?.length ? true : undefined}
-          className="mt-0.5 size-4 shrink-0 rounded border-slate-300 text-brand-700 accent-brand-700"
+          className="mt-0.5 size-4 shrink-0 rounded border-line-strong accent-brand-600"
         />
         <label htmlFor={id} className="text-sm leading-snug text-slate-700">
           {label}
         </label>
       </div>
       {hint && <p className="pl-7 text-xs text-slate-500">{hint}</p>}
-      {errors?.length ? <p className="pl-7 text-xs text-red-600">{errors[0]}</p> : null}
+      {errors?.length ? <p className="pl-7 text-xs font-medium text-red-700">{errors[0]}</p> : null}
     </div>
   );
 }
@@ -258,7 +264,7 @@ export function FileField({
         name={name}
         accept={accept}
         required={required}
-        className="block w-full cursor-pointer rounded-lg border border-slate-300 bg-white text-sm text-slate-700 file:mr-3 file:cursor-pointer file:border-0 file:bg-slate-100 file:px-4 file:py-2.5 file:font-medium file:text-slate-800 hover:file:bg-slate-200"
+        className="block w-full cursor-pointer rounded-lg border border-line-strong bg-white text-sm text-slate-700 file:mr-3 file:cursor-pointer file:border-0 file:bg-surface-2 file:px-4 file:py-2.5 file:font-medium file:text-slate-800 hover:file:bg-line"
       />
     </FieldShell>
   );

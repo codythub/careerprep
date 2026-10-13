@@ -4,29 +4,29 @@ import { Logo } from "@/components/site/logo";
 
 const COLUMNS = [
   {
-    title: "Services",
+    title: "Product",
     links: [
       { href: "/resume-optimization", label: "Resume Review" },
-      { href: "/interview-preparation", label: "Interview Preparation" },
-      { href: "/success-stories", label: "Success Stories" },
-    ],
-  },
-  {
-    title: "Jobs",
-    links: [
-      { href: "/jobs", label: "Remote Jobs" },
-      { href: "/jobs?ng=1", label: "Nigeria Eligible Jobs" },
-      { href: "/employers", label: "For Employers" },
-      { href: "/employers/post-job", label: "Post a Job" },
+      { href: "/dashboard", label: "Dashboard" },
+      { href: "/register", label: "Create an account" },
     ],
   },
   {
     title: "Resources",
     links: [
       { href: "/career-guides", label: "Career Guides" },
+      { href: "/interview-preparation", label: "Interview Preparation" },
       { href: "/career-guides/job-scam-awareness", label: "Job Scam Awareness" },
+      { href: "/jobs", label: "Jobs" },
+    ],
+  },
+  {
+    title: "Company",
+    links: [
       { href: "/about", label: "About" },
       { href: "/contact", label: "Contact" },
+      { href: "/employers", label: "For Employers" },
+      { href: "/success-stories", label: "Success Stories" },
     ],
   },
   {
@@ -43,17 +43,15 @@ const COLUMNS = [
 export function SiteFooter() {
   const socials = Object.entries(siteConfig.social).filter(([, url]) => url);
   return (
-    <footer className="border-t border-slate-200 bg-slate-50">
-      <div className="container-page py-12">
-        <div className="grid gap-10 lg:grid-cols-[1.2fr_2fr]">
-          <div className="max-w-sm">
+    <footer className="border-t border-line bg-surface">
+      <div className="container-page py-12 sm:py-16">
+        <div className="grid gap-10 lg:grid-cols-[1.1fr_2fr]">
+          <div className="max-w-xs">
             <Logo />
             <p className="mt-4 text-sm leading-relaxed text-slate-600">{siteConfig.brandMessage}</p>
-            <p className="mt-4 text-sm text-slate-600">
-              <a href={`mailto:${siteConfig.supportEmail}`} className="font-medium text-slate-800 hover:text-brand-700">
-                {siteConfig.supportEmail}
-              </a>
-            </p>
+            <a href={`mailto:${siteConfig.supportEmail}`} className="mt-4 inline-block text-sm font-medium text-slate-800 hover:text-brand-700">
+              {siteConfig.supportEmail}
+            </a>
             {socials.length > 0 && (
               <ul className="mt-4 flex gap-4 text-sm">
                 {socials.map(([name, url]) => (
@@ -70,7 +68,7 @@ export function SiteFooter() {
             {COLUMNS.map((col) => (
               <div key={col.title}>
                 <h2 className="text-sm font-semibold text-slate-900">{col.title}</h2>
-                <ul className="mt-3 space-y-2">
+                <ul className="mt-4 space-y-2.5">
                   {col.links.map((l) => (
                     <li key={l.href}>
                       <Link href={l.href} className="text-sm text-slate-600 hover:text-brand-700">
@@ -83,12 +81,13 @@ export function SiteFooter() {
             ))}
           </div>
         </div>
-        <div className="mt-10 border-t border-slate-200 pt-6 text-xs leading-relaxed text-slate-500">
-          <p>
-            © {new Date().getFullYear()} {siteConfig.legalName}. {siteConfig.name} provides career services and a job
-            listing platform. We do not guarantee interviews or employment. Job listings are provided by third parties —
-            always verify employers and <strong className="font-semibold text-slate-700">never pay anyone to get a job</strong>.
+        <div className="mt-12 flex flex-col gap-3 border-t border-line pt-6 text-xs leading-relaxed text-slate-500 sm:flex-row sm:items-start sm:justify-between">
+          <p className="max-w-2xl">
+            © {new Date().getFullYear()} {siteConfig.legalName}. Our reviews are automated, rule-based guidance — we don&apos;t guarantee
+            interviews or employment. Always verify employers and{" "}
+            <strong className="font-semibold text-slate-700">never pay anyone to get a job</strong>.
           </p>
+          <p className="shrink-0">Made for Nigerian professionals</p>
         </div>
       </div>
     </footer>

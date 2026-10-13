@@ -9,7 +9,7 @@ export const siteConfig = {
   legalName: "CareerPrep NG",
   tagline: "Prepare Better. Apply Smarter.",
   description:
-    "Automated resume reviews, remote job opportunities and practical career guidance designed for ambitious Nigerian professionals.",
+    "Automated resume reviews and practical career guidance designed for ambitious Nigerian professionals.",
   brandMessage: "Your skills deserve a better presentation.",
   supportingMessage:
     "We help you build a stronger professional profile, discover relevant opportunities and prepare for the application process.",
@@ -21,13 +21,6 @@ export const siteConfig = {
   country: "Nigeria",
   currency: "NGN",
   currencySymbol: "₦",
-  resumeOptimization: {
-    /**
-     * Price shown on marketing pages, in kobo. DISPLAY ONLY: the amount actually charged is
-     * decided and verified by the CareerPrep Laravel backend. Keep this in sync with it.
-     */
-    defaultPriceKobo: 600_000,
-  },
   social: {
     linkedin: "",
     x: "",

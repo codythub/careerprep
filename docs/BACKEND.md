@@ -27,6 +27,7 @@ so the client-side guard only decides what to render; it is not a security bound
 | Sign in (`/login`) | `POST /auth/login` | Yes, including wrong password |
 | Session check (all `/dashboard`) | `GET /auth/user` | Yes, including 401 for an invalid token |
 | Sign out | `POST /auth/logout` | Yes (only that token is revoked) |
+| Review price (home, resume review, payment card) | `GET /pricing` (no token); checkout disabled when `available` is false | Yes |
 | Profile (`/dashboard/profile`) | `GET /profile`, `PATCH /profile` | Yes |
 | Upload PDF (`/dashboard/resumes`) | `POST /resumes` (multipart field `resume`, PDF ≤ 5 MB) | Yes: text and image-only PDFs, non-PDF rejected (422). The browser XHR path is unit-tested only. |
 | Resume list and detail | `GET /resumes?page=`, `GET /resumes/{id}` | Yes |
@@ -35,6 +36,7 @@ so the client-side guard only decides what to render; it is not a security bound
 | Start checkout | `POST /payments { resume_id }` → redirect to `authorization_url` | Only the 503 "not configured" path. A real Paystack checkout needs Paystack keys. |
 | Paystack return (`/dashboard/payments/callback`) | `GET /payments?reference=` → `POST /payments/{id}/verify` (falls back to `GET /payments/{id}`) | Reference lookup yes; a successful verify needs Paystack |
 | Paid-but-unused review, unconfirmed payment | `GET /payments?page=` (`entitlement_status`, `review_id`) | Yes (verified payment inserted directly into a throwaway DB) |
+| Retry a failed review | `POST /reviews/{id}/retry { resume_id? }` (`attempts`, `max_attempts`, `can_retry`) | UI verified against a failed review with `can_retry: true`; the retry call itself is unit-tested only |
 | Run review | `POST /reviews { payment_id }` | Yes: completed review; second use → 422 |
 | Review history and detail | `GET /reviews?page=&resume_id=`, `GET /reviews/{id}` | Yes |
 | Download report | `GET /reviews/{id}/download` (`.txt`, filename in `Content-Disposition`) | Yes |
@@ -60,7 +62,6 @@ Each needs a Laravel API before it can return.
 | Employer job submissions (`/employers/post-job`) | Asks employers to email support | Public submission endpoint (rate-limited, spam-protected) plus an admin review flow |
 | Success stories and testimonials | Home sections hidden; `/success-stories` shows its empty state | Public read endpoints for consented, approved records |
 | Career guides CMS | Guides are static content in `src/content/guides.ts`, edited in the repo | Optional: an articles endpoint, if guides should be edited without a deploy |
-| Review price for marketing pages | Shown from `siteConfig.resumeOptimization.defaultPriceKobo` (display only) | Optional public price endpoint; otherwise keep it in sync with Laravel `PAYSTACK_REVIEW_AMOUNT` by hand |
 | Analytics events, email notifications, daily cron | Removed | Belong in Laravel if they are still wanted |
 
 ## Laravel configuration the frontend depends on

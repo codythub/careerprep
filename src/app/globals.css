@@ -2,32 +2,65 @@
 @plugin "@tailwindcss/typography";
 
 /*
- * Design tokens. One strong brand colour (deep green), neutral slate surfaces.
- * Change the brand palette here to rebrand.
+ * Design tokens — one confident brand accent (blue) on cool neutral surfaces.
+ * Rebrand by changing the --color-brand-* scale only; components never hard-code the accent.
+ *
+ * Radii (Tailwind defaults, used consistently):
+ *   rounded-lg  (8px)  controls: buttons, inputs, small tiles
+ *   rounded-xl  (12px) cards and list rows
+ *   rounded-2xl (16px) panels, banners, dialogs
+ *   rounded-full       pills, badges, avatars
  */
 @theme {
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 
-  --color-brand-50: #eef8f2;
-  --color-brand-100: #d5eee0;
-  --color-brand-200: #aedcc4;
-  --color-brand-300: #7cc3a2;
-  --color-brand-400: #4aa57d;
-  --color-brand-500: #2a8a62;
-  --color-brand-600: #1b6f4d;
-  --color-brand-700: #0b5d3b;
-  --color-brand-800: #0a4a31;
-  --color-brand-900: #083d29;
-  --color-brand-950: #042217;
+  /* Brand (blue). 600 is the primary action colour: 5.2:1 on white (WCAG AA). */
+  --color-brand-50: #eff5ff;
+  --color-brand-100: #dbe7fe;
+  --color-brand-200: #bfd4fe;
+  --color-brand-300: #93b6fd;
+  --color-brand-400: #608ffa;
+  --color-brand-500: #3b6ef6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4fd8;
+  --color-brand-800: #1e42af;
+  --color-brand-900: #1e3a8a;
+  --color-brand-950: #172554;
 
-  --color-accent-50: #fff8eb;
-  --color-accent-100: #feecc7;
-  --color-accent-600: #b45309;
-  --color-accent-700: #92400e;
+  /* Surfaces and lines */
+  --color-surface: #f5f7fb; /* tiles, panels, app background */
+  --color-surface-2: #eef2f8; /* hover/pressed tiles, tracks */
+  --color-line: #e4e9f2; /* hairline borders */
+  --color-line-strong: #d3dae6; /* inputs, outline buttons */
 
-  /* Card outline + drop shadow */
-  --color-line: #d9dfe7;
-  --shadow-card: 0 1px 0 0 rgb(11 18 32 / 0.04), 0 12px 28px -16px rgb(11 18 32 / 0.28);
+  /* Depth: soft and short */
+  --shadow-xs: 0 1px 2px 0 rgb(15 23 42 / 0.04);
+  --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 4px 12px -4px rgb(15 23 42 / 0.08);
+  --shadow-md: 0 2px 4px -1px rgb(15 23 42 / 0.05), 0 12px 32px -12px rgb(15 23 42 / 0.18);
+
+  /* Motion */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-fade-up: fade-up 400ms var(--ease-out-soft) both;
+  --animate-indeterminate: indeterminate 1.4s ease-in-out infinite;
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes indeterminate {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(250%);
+    }
+  }
 }
 
 @layer base {
@@ -36,19 +69,30 @@
     text-rendering: optimizeLegibility;
   }
   body {
-    @apply bg-white text-slate-900 antialiased;
+    @apply bg-white text-slate-800 antialiased;
   }
   h1,
   h2,
   h3,
   h4 {
-    @apply tracking-tight text-slate-950;
+    @apply tracking-tight text-balance text-slate-950;
   }
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-brand-600;
   }
   ::selection {
     @apply bg-brand-100 text-brand-900;
+  }
+  /* Respect reduced-motion everywhere: no transitions or animations, final states only. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
@@ -57,18 +101,53 @@
     @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
   }
   .prose-content {
-    @apply prose prose-slate max-w-none prose-headings:tracking-tight prose-a:text-brand-700 prose-a:underline-offset-2 prose-li:my-0.5;
+    @apply prose prose-slate max-w-none prose-headings:tracking-tight prose-headings:text-slate-950 prose-a:text-brand-700 prose-a:underline-offset-2 prose-li:my-0.5;
   }
 
-  /* Cards: thicker outline + soft drop shadow, used everywhere */
+  /* White card with a hairline border — the default container. */
   .card {
-    @apply rounded-xl border-2 border-line bg-white;
-    box-shadow: var(--shadow-card);
+    @apply rounded-xl border border-line bg-white shadow-xs;
   }
   .card-hover {
-    @apply transition-colors;
+    @apply transition-[border-color,box-shadow] duration-150;
   }
   .card-hover:hover {
-    @apply border-slate-300;
+    @apply border-brand-200 shadow-sm;
+  }
+  /* Tinted tile (reference style): surface fill, hairline border. */
+  .tile {
+    @apply rounded-xl border border-line bg-surface;
+  }
+  /* Small uppercase section label, e.g. "HOW IT WORKS". */
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.08em] text-slate-500;
+  }
+
+  /* Score ring: fills from 0 to --score (0–100) on mount. */
+  .score-ring {
+    background: conic-gradient(currentColor calc(var(--score) * 1%), var(--color-surface-2) 0);
+    animation: score-fill 1100ms var(--ease-out-soft) both;
+  }
+  /* Category bar: grows from 0 to its inline width on mount. */
+  .bar-fill {
+    animation: bar-fill 800ms var(--ease-out-soft) both;
+  }
+}
+
+@property --score {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@keyframes score-fill {
+  from {
+    --score: 0;
+  }
+}
+
+@keyframes bar-fill {
+  from {
+    width: 0;
   }
 }
