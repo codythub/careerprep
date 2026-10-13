@@ -57,12 +57,21 @@ npm test         # unit tests that pin every request to the Laravel contract
 LARAVEL_LIVE_URL=http://127.0.0.1:8000 npx vitest run tests/laravel-live.test.ts   # opt-in, against a running non-production API
 ```
 
-## Deploying
+## Deploying (manual only)
 
-The repo is connected to the Vercel project `careerprep-ng`: every push to `main` deploys to production
-(https://careerprep-ng.vercel.app). Pushes to other branches get preview URLs, but Laravel's CORS only allows
-`FRONTEND_URL`, so previews can't call the API unless Laravel allows their origin. Set the variables above in
-Vercel → Settings → Environment Variables (Node.js 22.x). The build runs no database step.
+Automatic Git deployments are **off**: `vercel.json` sets `"git": { "deploymentEnabled": false }`, so pushes and pull
+requests don't trigger Vercel builds on any branch that contains it. Deploy by hand with the Vercel CLI:
+
+```bash
+npx vercel login                       # once per machine
+npx vercel link                        # once per checkout: pick the scope and project
+npx vercel                             # Preview deployment
+npx vercel --prod                      # Production deployment
+```
+
+The CLI uploads your local working tree, so deploy from a clean checkout of the commit you mean to ship. Set the
+variables above in Vercel → Settings → Environment Variables (Node.js 22.x). The build runs no database step.
+Laravel's CORS only allows `FRONTEND_URL`, so a Preview deployment can't call the API unless Laravel allows its origin.
 
 ## Where things live
 
