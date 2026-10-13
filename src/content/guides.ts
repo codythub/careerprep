@@ -1,7 +1,36 @@
-import type { GuideCategory } from "@prisma/client";
+/**
+ * Career guides: editorial content shipped with the site (no database, no CMS).
+ * The Laravel API has no content endpoints, so guides are edited here and deployed.
+ * Practical advice only — no statistics, promises or invented stories.
+ */
 
-/** Starter career guides: practical advice only — no statistics, promises or invented stories. */
-export const GUIDES: Array<{
+export const GUIDE_CATEGORY_LABEL = {
+  RESUME: "Resume",
+  INTERVIEWS: "Interviews",
+  REMOTE_JOBS: "Remote Jobs",
+  LINKEDIN: "LinkedIn",
+  COVER_LETTERS: "Cover Letters",
+  SALARY_NEGOTIATION: "Salary",
+  PORTFOLIO: "Portfolio",
+  CAREER_DEVELOPMENT: "Career Development",
+  SCAM_AWARENESS: "Job Scam Awareness",
+} as const;
+
+export type GuideCategory = keyof typeof GUIDE_CATEGORY_LABEL;
+
+export const GUIDE_CATEGORY_SLUG: Record<GuideCategory, string> = {
+  RESUME: "resume",
+  INTERVIEWS: "interviews",
+  REMOTE_JOBS: "remote-jobs",
+  LINKEDIN: "linkedin",
+  COVER_LETTERS: "cover-letters",
+  SALARY_NEGOTIATION: "salary",
+  PORTFOLIO: "portfolio",
+  CAREER_DEVELOPMENT: "career-development",
+  SCAM_AWARENESS: "job-scam-awareness",
+};
+
+export type Guide = {
   slug: string;
   title: string;
   excerpt: string;
@@ -9,7 +38,9 @@ export const GUIDES: Array<{
   seoTitle?: string;
   seoDescription?: string;
   content: string;
-}> = [
+};
+
+const GUIDES: Guide[] = [
   {
     slug: "how-to-write-a-strong-resume",
     title: "How to Write a Strong Resume",
@@ -182,3 +213,13 @@ List skills that match your target roles. Ask former managers or colleagues for 
 - "Open to work" preferences set to your target roles and locations`,
   },
 ];
+
+/** Guides in display order, optionally limited to one category. */
+export function listGuides(category?: GuideCategory, take?: number): Guide[] {
+  const list = category ? GUIDES.filter((g) => g.category === category) : GUIDES;
+  return take ? list.slice(0, take) : list;
+}
+
+export function guideBySlug(slug: string): Guide | null {
+  return GUIDES.find((g) => g.slug === slug) ?? null;
+}

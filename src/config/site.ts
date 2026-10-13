@@ -27,9 +27,6 @@ export const siteConfig = {
      * decided and verified by the CareerPrep Laravel backend. Keep this in sync with it.
      */
     defaultPriceKobo: 600_000,
-    turnaround: "3–5 business days",
-    // Vercel caps serverless request bodies at 4.5 MB; keep uploads safely below it.
-    maxUploadBytes: 4 * 1024 * 1024,
   },
   social: {
     linkedin: "",

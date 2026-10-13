@@ -1,12 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Image from "next/image";
-import type { GuideCategory } from "@prisma/client";
 import { BookOpen } from "lucide-react";
-import { GUIDE_CATEGORY_LABEL, GUIDE_CATEGORY_SLUG } from "@/lib/labels";
-import { formatDate, cn } from "@/lib/format";
+import { GUIDE_CATEGORY_LABEL, GUIDE_CATEGORY_SLUG, listGuides, type GuideCategory } from "@/content/guides";
+import { cn } from "@/lib/format";
 import { EmptyState } from "@/components/ui/primitives";
-import { publishedArticles } from "@/server/services/articles";
 import { accent } from "@/lib/accents";
 
 export const metadata: Metadata = {
@@ -20,7 +17,7 @@ const SLUG_TO_CATEGORY = Object.fromEntries(Object.entries(GUIDE_CATEGORY_SLUG).
 export default async function CareerGuidesPage({ searchParams }: PageProps<"/career-guides">) {
   const sp = await searchParams;
   const category = typeof sp.category === "string" ? SLUG_TO_CATEGORY[sp.category] : undefined;
-  const articles = await publishedArticles(category);
+  const articles = listGuides(category);
 
   return (
     <div className="container-page py-10 sm:py-14">
@@ -53,15 +50,11 @@ export default async function CareerGuidesPage({ searchParams }: PageProps<"/car
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {articles.map((a, i) => (
-              <Link key={a.id} href={`/career-guides/${a.slug}`} className={`group flex flex-col overflow-hidden card card-hover border-t-4 ${accent(i).top}`}>
-                {a.coverImageUrl && (
-                  <Image src={a.coverImageUrl} alt="" width={640} height={320} className="aspect-[2/1] w-full object-cover" />
-                )}
+              <Link key={a.slug} href={`/career-guides/${a.slug}`} className={`group flex flex-col overflow-hidden card card-hover border-t-4 ${accent(i).top}`}>
                 <div className="flex flex-1 flex-col p-5">
                   <p className={`text-xs font-semibold ${accent(i).text}`}>{GUIDE_CATEGORY_LABEL[a.category]}</p>
                   <h2 className="mt-2 font-semibold leading-snug group-hover:text-brand-700">{a.title}</h2>
                   <p className="mt-2 line-clamp-3 flex-1 text-sm text-slate-600">{a.excerpt}</p>
-                  <p className="mt-4 text-xs text-slate-500">{formatDate(a.publishedAt)}</p>
                 </div>
               </Link>
             ))}

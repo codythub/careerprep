@@ -2,13 +2,6 @@ import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV !== "production";
 const isHttps = (process.env.NEXT_PUBLIC_SITE_URL ?? "").startsWith("https://");
-const supabaseHost = (() => {
-  try {
-    return process.env.SUPABASE_URL ? new URL(process.env.SUPABASE_URL).hostname : null;
-  } catch {
-    return null;
-  }
-})();
 // The browser calls the Laravel API directly (bearer token), so its origin must be allowed.
 const apiOrigin = (() => {
   try {
@@ -24,7 +17,7 @@ const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
-  `img-src 'self' data: blob:${supabaseHost ? ` https://${supabaseHost}` : ""}`,
+  "img-src 'self' data: blob:",
   "font-src 'self' data:",
   `connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ""}${isDev ? " ws:" : ""}`,
   "frame-ancestors 'none'",
@@ -46,14 +39,6 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
-  experimental: {
-    // Resume uploads go through server actions (4 MB file + multipart overhead).
-    serverActions: { bodySizeLimit: "4.5mb" },
-  },
-  images: {
-    remotePatterns: supabaseHost ? [{ protocol: "https", hostname: supabaseHost, pathname: "/storage/v1/object/public/**" }] : [],
-  },
-  serverExternalPackages: ["@prisma/client", "bcryptjs"],
   async headers() {
     return [
       {
@@ -64,7 +49,8 @@ const nextConfig: NextConfig = {
           ...(process.env.SITE_NOINDEX === "true" ? [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] : []),
         ],
       },
-      { source: "/(dashboard|admin)/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
+      // Candidate data is fetched client-side from Laravel, so the dashboard HTML holds nothing private.
+      { source: "/dashboard/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
     ];
   },
 };

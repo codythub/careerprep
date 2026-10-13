@@ -2,9 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { InterviewPrepContent } from "@/components/site/interview-prep-content";
-import { publishedArticles } from "@/server/services/articles";
-
-export const revalidate = 300;
+import { listGuides } from "@/content/guides";
 
 export const metadata: Metadata = {
   title: "Interview Preparation",
@@ -12,8 +10,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/interview-preparation" },
 };
 
-export default async function InterviewPreparationPage() {
-  const guides = await publishedArticles("INTERVIEWS", 6);
+export default function InterviewPreparationPage() {
+  const guides = listGuides("INTERVIEWS", 6);
   return (
     <div className="container-page py-14 sm:py-20">
       <div className="max-w-3xl">
@@ -29,7 +27,7 @@ export default async function InterviewPreparationPage() {
           <h2 className="text-xl font-semibold">Interview guides</h2>
           <ul className="mt-4 grid gap-3 sm:grid-cols-2">
             {guides.map((g) => (
-              <li key={g.id}>
+              <li key={g.slug}>
                 <Link href={`/career-guides/${g.slug}`} className="flex items-center justify-between gap-3 card p-4 card-hover">
                   <span className="font-medium">{g.title}</span>
                   <ArrowRight className="size-4 shrink-0 text-slate-400" aria-hidden />

@@ -1,39 +1,46 @@
 import type { Metadata } from "next";
-import { after } from "next/server";
-import { jobFiltersSchema } from "@/lib/validation";
-import { JobListing } from "@/components/jobs/job-listing";
-import { track } from "@/server/analytics";
+import { BriefcaseBusiness } from "lucide-react";
+import { EmptyState } from "@/components/ui/primitives";
+import { LinkButton } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: "Remote Jobs for Nigerian Professionals",
-  description:
-    "Browse reviewed remote and local jobs. Nigeria eligibility is only shown when confirmed by our team. Filter by category, type, level and salary.",
+  description: "Our reviewed remote job board for Nigerian professionals is not open yet. Read our guide to finding legitimate remote jobs from Nigeria.",
   alternates: { canonical: "/jobs" },
+  // No listings to index until the job board has a backend.
+  robots: { index: false, follow: true },
 };
 
-export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
-  const raw = await searchParams;
-  const filters = jobFiltersSchema.parse(Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v])));
-
-  after(async () => {
-    if (filters.q) await track("job_search", { path: "/jobs", props: { q: filters.q } });
-    const applied = Object.fromEntries(
-      Object.entries(filters).filter(([k, v]) => v !== undefined && !["q", "page", "sort"].includes(k)),
-    );
-    if (Object.keys(applied).length) await track("job_filter", { path: "/jobs", props: applied as Record<string, string> });
-  });
-
+/**
+ * The CareerPrep Laravel API has no job endpoints yet, so there are no listings to show.
+ * Nothing here is faked: the page says so plainly and points to the guides instead.
+ */
+export default function JobsPage() {
   return (
     <div className="container-page py-10 sm:py-14">
       <div className="mb-8 max-w-3xl">
         <h1 className="text-3xl font-semibold sm:text-4xl">Remote jobs</h1>
         <p className="mt-2 text-slate-600">
-          Every listing is reviewed before publishing. <strong className="font-semibold text-slate-800">Remote</strong> and{" "}
-          <strong className="font-semibold text-slate-800">Nigeria Eligible</strong> are different — we only show Nigeria
-          Eligible when our team has confirmed it.
+          <strong className="font-semibold text-slate-800">Remote</strong> and{" "}
+          <strong className="font-semibold text-slate-800">Nigeria Eligible</strong> are different — when the job board opens,
+          we&apos;ll only show Nigeria Eligible where our team has confirmed it.
         </p>
       </div>
-      <JobListing filters={filters} basePath="/jobs" />
+      <EmptyState
+        icon={<BriefcaseBusiness className="size-5" />}
+        title="The job board isn't open yet"
+        action={
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <LinkButton href="/career-guides/how-to-find-legitimate-remote-jobs-from-nigeria">Find legitimate remote jobs</LinkButton>
+            <LinkButton href="/career-guides/job-scam-awareness" variant="outline">
+              Job scam awareness
+            </LinkButton>
+          </div>
+        }
+      >
+        We&apos;re not publishing job listings yet. In the meantime, our free guides explain how to find and check remote roles
+        that accept applicants from Nigeria.
+      </EmptyState>
     </div>
   );
 }

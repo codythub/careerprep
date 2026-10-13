@@ -5,7 +5,6 @@ import { siteConfig } from "@/config/site";
 import { formatNaira } from "@/lib/format";
 import { buttonClass } from "@/components/ui/button";
 import { Alert, SectionHeading } from "@/components/ui/primitives";
-import { TrackedLink } from "@/components/analytics";
 import { accent } from "@/lib/accents";
 
 export const metadata: Metadata = {
@@ -53,9 +52,9 @@ export default function ResumeOptimizationPage() {
             <p className="text-sm text-slate-600">Per review</p>
             <p className="mt-1 text-4xl font-semibold tabular-nums">{price}</p>
             <p className="mt-1 text-sm text-slate-500">Results in your dashboard after payment is confirmed</p>
-            <TrackedLink event="resume_cta_click" href="/dashboard/resumes" className={buttonClass("primary", "lg", "mt-6 w-full")}>
+            <Link href="/dashboard/resumes" className={buttonClass("primary", "lg", "mt-6 w-full")}>
               Review My Resume - {price}
-            </TrackedLink>
+            </Link>
             <ul className="mt-6 space-y-2 text-sm text-slate-600">
               <li className="flex gap-2"><Lock className="mt-0.5 size-4 shrink-0 text-brand-600" aria-hidden /> Secure payment with Paystack</li>
               <li className="flex gap-2"><ShieldCheck className="mt-0.5 size-4 shrink-0 text-brand-600" aria-hidden /> Your resume is stored privately</li>
@@ -149,9 +148,9 @@ export default function ResumeOptimizationPage() {
           ))}
         </dl>
         <div className="mt-12 text-center">
-          <TrackedLink event="resume_cta_click" href="/dashboard/resumes" className={buttonClass("primary", "lg")}>
+          <Link href="/dashboard/resumes" className={buttonClass("primary", "lg")}>
             Review My Resume - {price}
-          </TrackedLink>
+          </Link>
         </div>
       </section>
     </>

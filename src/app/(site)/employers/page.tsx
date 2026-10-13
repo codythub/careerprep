@@ -34,7 +34,7 @@ export default function EmployersPage() {
             <h1 className="mt-2 text-4xl font-semibold leading-tight sm:text-5xl">Are you hiring?</h1>
             <p className="mt-5 text-lg leading-relaxed text-slate-600">
               Share your remote, hybrid or on-site role with Nigerian professionals on {siteConfig.name}. Submitting a job is
-              free and every listing is reviewed before it&apos;s published.
+              free and every listing will be reviewed before it&apos;s published.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <LinkButton href="/employers/post-job" size="lg">
@@ -65,7 +65,7 @@ export default function EmployersPage() {
           <SectionHeading
             eyebrow="How it works"
             title="Submit → review → publish"
-            description="Submit your role with the form. We review it, may contact you to confirm details, then publish it. You'll get an email when it's approved."
+            description="Email us your role. We review it and may contact you to confirm details. Online submissions and the job board aren't open yet."
           />
           <div className="card p-6">
             <h3 className="font-semibold">Listing requirements</h3>

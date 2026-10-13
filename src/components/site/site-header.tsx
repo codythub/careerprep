@@ -17,35 +17,20 @@ const NAV = [
   { href: "/employers", label: "For Employers" },
 ];
 
-type SessionInfo = { signedIn: boolean; isAdmin: boolean } | null;
-
 /**
  * Client header so public pages stay statically cacheable. Candidates are "signed in" when a
- * Laravel bearer token is held in this browser; staff are detected via the legacy admin session.
+ * Laravel bearer token is held in this browser (the dashboard validates it with the API).
  */
 export function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const [session, setSession] = useState<SessionInfo>(null);
+  // null until mounted: the token lives in browser storage, which the server can't read.
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    const check = () => {
-      if (getToken()) return setSession({ signedIn: true, isAdmin: false });
-      fetch("/api/auth/session", { cache: "no-store" })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((s: { user?: { role?: string } } | null) => {
-          const isAdmin = s?.user?.role === "ADMIN";
-          if (!cancelled) setSession({ signedIn: isAdmin, isAdmin });
-        })
-        .catch(() => !cancelled && setSession({ signedIn: false, isAdmin: false }));
-    };
+    const check = () => setSignedIn(getToken() !== null);
     check();
-    const off = onTokenChange(check);
-    return () => {
-      cancelled = true;
-      off();
-    };
+    return onTokenChange(check);
   }, []);
 
   // Close the mobile menu on navigation (render-phase state adjustment).
@@ -55,9 +40,9 @@ export function SiteHeader() {
     setOpen(false);
   }
 
-  const account = session?.signedIn ? (
-    <Link href={session.isAdmin ? "/admin" : "/dashboard"} className={buttonClass("outline", "sm")}>
-      {session.isAdmin ? "Admin" : "Dashboard"}
+  const account = signedIn ? (
+    <Link href="/dashboard" className={buttonClass("outline", "sm")}>
+      Dashboard
     </Link>
   ) : (
     <Link href="/login" className={buttonClass("ghost", "sm")}>
@@ -109,9 +94,9 @@ export function SiteHeader() {
               </Link>
             ))}
             <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-4">
-              {session?.signedIn ? (
-                <Link href={session.isAdmin ? "/admin" : "/dashboard"} className={buttonClass("outline", "md")}>
-                  {session.isAdmin ? "Admin" : "Dashboard"}
+              {signedIn ? (
+                <Link href="/dashboard" className={buttonClass("outline", "md")}>
+                  Dashboard
                 </Link>
               ) : (
                 <Link href="/login" className={buttonClass("outline", "md")}>

@@ -3,9 +3,6 @@
 .env.*
 !.env.example
 .vercel
-.local-db
-.local-storage
-.test-db
 node_modules
 .next
 coverage

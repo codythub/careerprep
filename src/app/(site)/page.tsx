@@ -17,13 +17,6 @@ import { siteConfig } from "@/config/site";
 import { formatNaira } from "@/lib/format";
 import { buttonClass, LinkButton } from "@/components/ui/button";
 import { SectionHeading } from "@/components/ui/primitives";
-import { JobCard } from "@/components/jobs/job-card";
-import { TestimonialCard } from "@/components/site/testimonial-card";
-import { TrackView, TrackedLink } from "@/components/analytics";
-import { featuredJobs, latestJobs } from "@/server/services/jobs";
-import { publicStories, publicTestimonials } from "@/server/services/social-proof";
-
-export const revalidate = 300;
 
 // Each service gets its own accent so the section reads at a glance.
 const SERVICES = [
@@ -40,9 +33,9 @@ const SERVICES = [
   {
     icon: BriefcaseBusiness,
     title: "Remote Job Board",
-    body: "Reviewed remote and local listings, with Nigeria eligibility clearly marked only where our team has confirmed it.",
+    body: "Coming soon: reviewed remote and local listings, with Nigeria eligibility clearly marked only where our team has confirmed it.",
     href: "/jobs",
-    cta: "Browse jobs",
+    cta: "Find out more",
     accent: "border-t-sky-500",
     iconCls: "bg-sky-100 text-sky-700",
     linkCls: "text-sky-700 hover:text-sky-800",
@@ -76,20 +69,12 @@ const STEPS = [
   { icon: Download, title: "Get your assessment", body: "Scores, weaknesses and recommendations — plus a downloadable report.", num: "bg-violet-600", iconCls: "text-violet-600" },
 ];
 
-export default async function HomePage() {
-  const [featured, testimonials, stories] = await Promise.all([
-    featuredJobs(6),
-    publicTestimonials(6),
-    publicStories(3),
-  ]);
-  const jobs = featured.length > 0 ? featured : await latestJobs(6);
+export default function HomePage() {
   // Display price only — the amount charged is set and verified by the CareerPrep (Laravel) backend.
   const price = formatNaira(siteConfig.resumeOptimization.defaultPriceKobo);
 
   return (
     <>
-      <TrackView event="homepage_view" />
-
       {/* Hero */}
       <section className="relative overflow-hidden border-b border-slate-100 bg-gradient-to-br from-brand-100 via-white to-amber-50">
         <div className="pointer-events-none absolute -top-32 -right-24 size-96 rounded-full bg-emerald-300/40 blur-3xl" aria-hidden />
@@ -106,9 +91,9 @@ export default async function HomePage() {
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-relaxed text-slate-600">{siteConfig.description}</p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <TrackedLink event="resume_cta_click" href="/resume-optimization" className={buttonClass("primary", "lg")}>
+              <Link href="/resume-optimization" className={buttonClass("primary", "lg")}>
                 Review My Resume - {price}
-              </TrackedLink>
+              </Link>
               <LinkButton href="/jobs" variant="outline" size="lg">
                 Find Remote Jobs
               </LinkButton>
@@ -149,9 +134,9 @@ export default async function HomePage() {
               description="Many strong candidates are overlooked because their resume lists duties instead of results, or is hard for screening systems to read. Our automated assessment shows you exactly where to improve."
             />
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <TrackedLink event="resume_cta_click" href="/dashboard/resumes" className={buttonClass("primary", "lg")}>
+              <Link href="/dashboard/resumes" className={buttonClass("primary", "lg")}>
                 Upload my resume
-              </TrackedLink>
+              </Link>
               <LinkButton href="/resume-optimization" variant="ghost" size="lg">
                 How it works <ArrowRight className="size-4" aria-hidden />
               </LinkButton>
@@ -201,29 +186,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Featured jobs */}
-      {jobs.length > 0 && (
-        <section className="bg-gradient-to-b from-sky-50 to-white">
-          <div className="container-page py-16 sm:py-20">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <SectionHeading
-                eyebrow="Remote jobs"
-                title={featured.length > 0 ? "Featured opportunities" : "Latest opportunities"}
-                description="“Remote” and “Nigeria Eligible” are different. We only show the Nigeria Eligible label when our team has confirmed it."
-              />
-              <LinkButton href="/jobs" variant="outline">
-                View all jobs
-              </LinkButton>
-            </div>
-            <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {jobs.map((job) => (
-                <JobCard key={job.id} job={job} />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* How it works */}
       <section className="container-page py-16 sm:py-20">
         <SectionHeading eyebrow="How it works" title="Four simple steps" center />
@@ -240,41 +202,6 @@ export default async function HomePage() {
           ))}
         </ol>
       </section>
-
-      {/* Testimonials — only rendered when real, approved testimonials exist */}
-      {testimonials.length > 0 && (
-        <section className="bg-gradient-to-b from-amber-50 to-white">
-          <div className="container-page py-16 sm:py-20">
-            <SectionHeading eyebrow="Testimonials" title="What customers say" description="Every testimonial here comes from a customer with a completed order." />
-            <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {testimonials.map((t) => (
-                <TestimonialCard key={t.id} t={t} />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Success stories — only verified, consented stories */}
-      {stories.length > 0 && (
-        <section className="container-page py-16 sm:py-20">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <SectionHeading eyebrow="Verified success stories" title="Real journeys from real customers" />
-            <LinkButton href="/success-stories" variant="outline">
-              All stories
-            </LinkButton>
-          </div>
-          <div className="mt-10 grid gap-4 md:grid-cols-3">
-            {stories.map((s) => (
-              <Link key={s.id} href={`/success-stories/${s.slug}`} className="card border-t-4 border-t-violet-500 p-6 card-hover">
-                <p className="text-xs font-semibold text-violet-700">{s.careerField}</p>
-                <h3 className="mt-2 font-semibold">{s.candidateName}</h3>
-                <p className="mt-2 line-clamp-3 text-sm text-slate-600">{s.outcome}</p>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* Interview preparation */}
       <section className="relative overflow-hidden bg-gradient-to-br from-brand-800 via-brand-900 to-slate-900 text-white">
@@ -327,9 +254,9 @@ export default async function HomePage() {
           <h2 className="text-3xl font-semibold text-white sm:text-4xl">{siteConfig.brandMessage}</h2>
           <p className="mx-auto mt-3 max-w-xl text-emerald-50">Prepare better, apply smarter — starting with a resume that represents you well.</p>
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-            <TrackedLink event="resume_cta_click" href="/resume-optimization" className={buttonClass("inverse", "lg")}>
+            <Link href="/resume-optimization" className={buttonClass("inverse", "lg")}>
               Review My Resume - {price}
-            </TrackedLink>
+            </Link>
             <Link href="/jobs" className={buttonClass("outlineInverse", "lg")}>
               Find Remote Jobs
             </Link>
