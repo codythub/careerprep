@@ -1,5 +1,10 @@
 # Implementation Plan — V1
 
+> **Superseded architecture.** This is the original V1 plan, written for a Prisma/Auth.js/Supabase backend inside
+> this repo. That backend has been removed: the Laravel CareerPrep API is now the only backend (see
+> [`BACKEND.md`](BACKEND.md)). The product rules below (honest eligibility labels, no fabricated proof, no
+> guarantees) still apply; the stack, schema, route and environment sections do not.
+
 **Positioning:** Prepare Better. Apply Smarter.
 **Scope rule:** No AI matching, interview simulation or other advanced features in V1. No fabricated testimonials, statistics or eligibility claims.
 

@@ -55,10 +55,13 @@ async function findAndVerify(token: string, lookup: Lookup) {
   try {
     return { payment: await api.verifyPayment(token, paymentId), notPaid: null };
   } catch (err) {
+    if (!(err instanceof ApiError) || err.isUnauthorized) throw err;
+    // Verify re-asks Paystack even for a payment Laravel already verified, so a Paystack hiccup
+    // must not hide an earlier verification: fall back to Laravel's stored status.
+    const stored = await api.getPayment(token, paymentId);
+    if (stored.status === "verified") return { payment: stored, notPaid: null };
     // 422: Paystack did not report a successful payment for the expected amount/currency.
-    if (err instanceof ApiError && err.status === 422) {
-      return { payment: await api.getPayment(token, paymentId), notPaid: err.fieldErrors.payment?.[0] ?? err.message };
-    }
+    if (err.status === 422) return { payment: stored, notPaid: err.fieldErrors.payment?.[0] ?? err.message };
     throw err;
   }
 }
