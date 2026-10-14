@@ -1,16 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import { api } from "@/lib/laravel/api";
+import type { Candidate } from "@/lib/laravel/types";
 import { Button } from "@/components/ui/button";
 import { Alert, Card, CardBody, PageHeader, Skeleton } from "@/components/ui/primitives";
 import { ProfileForm } from "@/components/candidate/actions";
 import { useApi } from "@/components/candidate/auth";
 
-export function ProfileView() {
+/** Your own account details (GET/PATCH /profile). Used by the candidate dashboard and the admin area. */
+export function ProfileView({ eyebrow }: { eyebrow?: string } = {}) {
   const profile = useApi((t) => api.getProfile(t));
+  // The saved profile from PATCH /profile. React resets a form to its default values after a successful
+  // action, so the defaults must be the saved values — otherwise the fields snap back to the old ones.
+  const [saved, setSaved] = useState<Candidate | null>(null);
   return (
     <>
-      <PageHeader title="Profile" description="Your details as stored in your CareerPrep account." />
+      <PageHeader eyebrow={eyebrow} title="Profile" description="Your details as stored in your CareerPrep account." />
       <div className="max-w-3xl">
         {profile.loading ? (
           <Card aria-busy="true">
@@ -30,7 +36,7 @@ export function ProfileView() {
           <Card>
             <CardBody>
               <h2 className="mb-5 font-semibold">Personal details</h2>
-              <ProfileForm profile={profile.data} />
+              <ProfileForm profile={saved ?? profile.data} onSaved={setSaved} />
             </CardBody>
           </Card>
         ) : (

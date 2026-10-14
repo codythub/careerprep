@@ -73,8 +73,8 @@ Code: `src/lib/laravel/admin.ts` (client and normalisers), `src/components/admin
 
 ## Missing backend contract
 
-These parts of the old Prisma-backed frontend have **no Laravel endpoint**. They were removed rather than faked.
-Each needs a Laravel API before it can return.
+These features have **no Laravel endpoint**, so the frontend doesn't show them with fake data. Each needs a Laravel
+API before it can be built.
 
 | Feature | Frontend today | What Laravel would need to provide |
 |---|---|---|

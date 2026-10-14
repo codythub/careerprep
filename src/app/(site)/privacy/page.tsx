@@ -42,8 +42,6 @@ export default function PrivacyPage() {
       <p>We use trusted providers to run the platform, including:</p>
       <ul>
         <li>Paystack — payment processing</li>
-        <li>Supabase — database and private file storage</li>
-        <li>Resend — transactional email</li>
         <li>Vercel — website hosting</li>
       </ul>
       <p>These providers process data on our behalf and only as needed to provide their services.</p>

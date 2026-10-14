@@ -11,7 +11,7 @@ Sanctum bearer tokens, PostgreSQL, Paystack, private resume storage), which is a
 
 ## Architecture
 
-This app has **no database, no Prisma, no server-side data access and no secrets**. Every piece of account data
+This app has **no database, no server-side data access and no secrets**. Every piece of account data
 comes from Laravel, called from the browser with the candidate's bearer token:
 
 - `src/lib/laravel/`: the typed API client: config/endpoints, fetch wrapper, normalisers and token storage.
@@ -31,8 +31,11 @@ and `/success-stories` say so plainly, and `/employers/post-job` asks employers 
 | `NEXT_PUBLIC_SITE_URL` | Production | This site's public URL (canonical URLs, sitemap, Open Graph). Defaults to `http://localhost:3000`. |
 | `SITE_NOINDEX` | No | `true` keeps a preview/temporary deployment out of search engines. |
 
-`NEXT_PUBLIC_*` values are inlined at **build** time, so a change needs a new deploy. `DATABASE_URL`, `DIRECT_URL`,
-`AUTH_SECRET`, Paystack, Supabase and Resend variables are **not** used by this app; remove them from Vercel.
+`NEXT_PUBLIC_*` values are inlined at **build** time, so a change needs a new deploy.
+
+Delete these from Vercel if present — this app doesn't use them: `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `AUTH_URL`,
+`PAYSTACK_SECRET_KEY`, `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`,
+`EMAIL_FROM`, `ADMIN_ALERT_EMAIL`.
 
 Laravel must have `FRONTEND_URL` set to this site's origin (CORS) and
 `PAYSTACK_CALLBACK_URL=<site>/dashboard/payments/callback`. The Paystack webhook points at Laravel, not here.
@@ -87,5 +90,3 @@ Laravel's CORS only allows `FRONTEND_URL`, so a Preview deployment can't call th
 | `src/components/ui` | Design-system primitives; tokens live in `src/app/globals.css` (`@theme`) |
 | `src/content/guides.ts` | Career guide content |
 | `tests/` | Vitest: contract unit tests and the opt-in live API test |
-
-`docs/PLAN.md` is the original V1 plan, which used a Prisma backend. It is kept for its product rules only.

@@ -90,15 +90,18 @@ export function UserMenu({
               </li>
             )}
             <li>
-              <Link href="/dashboard/profile" className={itemCls} onClick={() => setOpen(false)}>
+              {/* Each area has its own profile page so admins stay inside the admin shell. */}
+              <Link href={area === "admin" ? "/admin/profile" : "/dashboard/profile"} className={itemCls} onClick={() => setOpen(false)}>
                 <User className="size-4 text-slate-400" aria-hidden /> Profile
               </Link>
             </li>
-            <li>
-              <Link href="/career-guides" className={itemCls} onClick={() => setOpen(false)}>
-                <BookOpen className="size-4 text-slate-400" aria-hidden /> Career guides
-              </Link>
-            </li>
+            {area === "candidate" && (
+              <li>
+                <Link href="/career-guides" className={itemCls} onClick={() => setOpen(false)}>
+                  <BookOpen className="size-4 text-slate-400" aria-hidden /> Career guides
+                </Link>
+              </li>
+            )}
             <li>
               <button
                 type="button"
