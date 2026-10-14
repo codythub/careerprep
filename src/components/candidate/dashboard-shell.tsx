@@ -1,6 +1,8 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { AppShell } from "@/components/dashboard/app-shell";
 import type { NavItem } from "@/components/dashboard/side-nav";
 import { CandidateAuthProvider, RequireCandidate, useCandidateAuth } from "@/components/candidate/auth";
@@ -15,7 +17,7 @@ const NAV: NavItem[] = [
 export function CandidateDashboardShell({ children }: { children: ReactNode }) {
   return (
     <CandidateAuthProvider>
-      <RequireCandidate>{({ user }) => <Shell user={user}>{children}</Shell>}</RequireCandidate>
+      <RequireCandidate>{({ user }) => (user.role === "admin" ? <RedirectAdmin /> : <Shell user={user}>{children}</Shell>)}</RequireCandidate>
     </CandidateAuthProvider>
   );
 }
@@ -26,5 +28,21 @@ function Shell({ user, children }: { user: { name: string | null; email: string 
     <AppShell nav={NAV} navLabel="Dashboard" user={{ name: user.name, email: user.email, role: user.role }} onSignOut={signOut}>
       {children}
     </AppShell>
+  );
+}
+
+/** Admin accounts don't use the candidate dashboard: send them to the admin area instead. */
+function RedirectAdmin() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/admin");
+  }, [router]);
+  return (
+    <div className="flex min-h-dvh items-center justify-center bg-surface" aria-busy="true">
+      <Loader2 className="size-5 animate-spin text-brand-600" aria-hidden />
+      <span className="sr-only" role="status">
+        Opening the admin area…
+      </span>
+    </div>
   );
 }

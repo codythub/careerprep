@@ -1,12 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { BookOpen, LayoutDashboard, ShieldCheck } from "lucide-react";
+import { BookOpen, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/site/logo";
 import { BottomTabs, SideNav, type NavItem } from "@/components/dashboard/side-nav";
 import { UserMenu } from "@/components/dashboard/user-menu";
 
 /**
- * Candidate dashboard shell: sidebar on desktop; top bar plus bottom tab bar on mobile.
+ * Dashboard shell (candidate or admin area): sidebar on desktop; top bar plus bottom tab bar on mobile.
  */
 export function AppShell({
   nav,
@@ -21,13 +21,11 @@ export function AppShell({
   user: { name: string | null; email: string | null; role?: "candidate" | "admin" };
   children: ReactNode;
   onSignOut: () => Promise<void>;
-  /** "admin" adds an Admin badge and links back to the candidate dashboard. */
+  /** "admin" adds an Admin badge; the two areas never link to each other. */
   area?: "candidate" | "admin";
 }) {
-  const footer =
-    area === "admin"
-      ? { href: "/dashboard", label: "Candidate dashboard", Icon: LayoutDashboard }
-      : { href: "/career-guides", label: "Career guides", Icon: BookOpen };
+  // Admin and candidate areas are separate: the admin sidebar has no link into the candidate side.
+  const footer = area === "admin" ? null : { href: "/career-guides", label: "Career guides", Icon: BookOpen };
   return (
     <div className="min-h-dvh bg-surface lg:grid lg:grid-cols-[256px_minmax(0,1fr)]">
       <aside className="hidden border-r border-line bg-white lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col">
@@ -44,11 +42,13 @@ export function AppShell({
           )}
           <SideNav items={nav} label={navLabel} />
         </div>
-        <div className="border-t border-line p-3">
-          <Link href={footer.href} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-surface-2 hover:text-slate-950">
-            <footer.Icon className="size-[18px] text-slate-400" aria-hidden /> {footer.label}
-          </Link>
-        </div>
+        {footer && (
+          <div className="border-t border-line p-3">
+            <Link href={footer.href} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-surface-2 hover:text-slate-950">
+              <footer.Icon className="size-[18px] text-slate-400" aria-hidden /> {footer.label}
+            </Link>
+          </div>
+        )}
       </aside>
 
       <div className="flex min-w-0 flex-col">

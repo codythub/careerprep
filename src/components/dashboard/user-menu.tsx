@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
-import { BookOpen, ChevronDown, LayoutDashboard, LogOut, ShieldCheck, User } from "lucide-react";
+import { BookOpen, ChevronDown, LogOut, User } from "lucide-react";
 import { cn } from "@/lib/format";
 
 function initials(name: string | null, email: string | null) {
@@ -20,7 +20,7 @@ export function UserMenu({
   onSignOut,
   area = "candidate",
 }: {
-  user: { name: string | null; email: string | null; role?: "candidate" | "admin" };
+  user: { name: string | null; email: string | null };
   onSignOut: () => Promise<void>;
   area?: "candidate" | "admin";
 }) {
@@ -75,20 +75,7 @@ export function UserMenu({
             {user.email && <p className="truncate text-xs text-slate-500">{user.email}</p>}
           </div>
           <ul className="pt-1.5">
-            {/* Shown to admins only; Laravel still refuses admin API calls from anyone else. */}
-            {user.role === "admin" && (
-              <li>
-                {area === "admin" ? (
-                  <Link href="/dashboard" className={itemCls} onClick={() => setOpen(false)}>
-                    <LayoutDashboard className="size-4 text-slate-400" aria-hidden /> Candidate dashboard
-                  </Link>
-                ) : (
-                  <Link href="/admin" className={itemCls} onClick={() => setOpen(false)}>
-                    <ShieldCheck className="size-4 text-slate-400" aria-hidden /> Admin panel
-                  </Link>
-                )}
-              </li>
-            )}
+            {/* No links between the admin and candidate areas: they are separate. */}
             <li>
               {/* Each area has its own profile page so admins stay inside the admin shell. */}
               <Link href={area === "admin" ? "/admin/profile" : "/dashboard/profile"} className={itemCls} onClick={() => setOpen(false)}>

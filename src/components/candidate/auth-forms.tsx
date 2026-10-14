@@ -30,9 +30,11 @@ export function LoginForm({ callbackUrl, children, className }: { callbackUrl?: 
     if (!password) fieldErrors.password = ["Enter your password."];
     if (Object.keys(fieldErrors).length) return { ok: false, fieldErrors, values: { email } };
     try {
-      const { token, expiresAt } = await api.login({ email, password });
+      const { token, expiresAt, user } = await api.login({ email, password });
       setToken(token, expiresAt);
-      router.replace(to);
+      // Admins and candidates use separate areas: admins always land in /admin, candidates never do.
+      const isAdminPath = to === "/admin" || to.startsWith("/admin/");
+      router.replace(user?.role === "admin" ? (isAdminPath ? to : "/admin") : isAdminPath ? "/dashboard" : to);
       return { ok: true };
     } catch (err) {
       return failed(err, { email });

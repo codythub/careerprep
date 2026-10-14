@@ -48,7 +48,7 @@ function NoAccess() {
         <h1 className="mt-4 text-xl font-semibold">You don&apos;t have access to the admin area</h1>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">This area is for CareerPrep staff. If you think this is wrong, contact your administrator.</p>
         <LinkButton href="/dashboard" className="mt-6">
-          Go to my dashboard
+          Back to my dashboard
         </LinkButton>
       </div>
     </div>
