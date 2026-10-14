@@ -6,11 +6,11 @@
  * anything missing stays null/empty and the UI shows it as unavailable.
  */
 
-type Obj = Record<string, unknown>;
+export type Obj = Record<string, unknown>;
 
-const isObj = (v: unknown): v is Obj => typeof v === "object" && v !== null && !Array.isArray(v);
-const str = (v: unknown): string | null => (typeof v === "string" && v.trim() !== "" ? v : typeof v === "number" ? String(v) : null);
-const num = (v: unknown): number | null => {
+export const isObj = (v: unknown): v is Obj => typeof v === "object" && v !== null && !Array.isArray(v);
+export const str = (v: unknown): string | null => (typeof v === "string" && v.trim() !== "" ? v : typeof v === "number" ? String(v) : null);
+export const num = (v: unknown): number | null => {
   if (typeof v === "number" && Number.isFinite(v)) return v;
   if (typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v))) return Number(v);
   return null;
@@ -37,6 +37,8 @@ export type Candidate = {
   phone: string | null;
   location: string | null;
   professionalTitle: string | null;
+  /** From GET /auth/user. Only used to show or hide admin UI — Laravel enforces access. */
+  role: "candidate" | "admin";
 };
 
 export function toCandidate(body: unknown): Candidate | null {
@@ -53,6 +55,7 @@ export function toCandidate(body: unknown): Candidate | null {
     phone: str(o.phone),
     location: str(o.location),
     professionalTitle: str(pick(o, "professional_title", "professionalTitle")),
+    role: o.role === "admin" ? "admin" : "candidate",
   };
 }
 
@@ -132,7 +135,7 @@ export function toResume(raw: unknown): Resume | null {
 
 // ── Payments ────────────────────────────────────────────────────────────────
 
-export type PaymentStatus = "pending" | "initialized" | "verified" | "failed" | "unknown";
+export type PaymentStatus = "pending" | "initialized" | "verified" | "failed" | "refunded" | "unknown";
 /** available = verified and unused · consumed = a review was created · unavailable = not verified. */
 export type EntitlementStatus = "available" | "consumed" | "unavailable" | "unknown";
 
@@ -151,7 +154,7 @@ export type Payment = {
   createdAt: string | null;
 };
 
-const oneOf = <T extends string>(v: unknown, allowed: readonly T[]): T | "unknown" =>
+export const oneOf = <T extends string>(v: unknown, allowed: readonly T[]): T | "unknown" =>
   typeof v === "string" && (allowed as readonly string[]).includes(v) ? (v as T) : "unknown";
 
 /** Payment resource: `{ data: Payment }` or a list item. */
@@ -167,7 +170,7 @@ export function toPayment(raw: unknown): Payment | null {
     reference: str(o.reference),
     amount: num(o.amount),
     currency: str(o.currency),
-    status: oneOf(o.status, ["pending", "initialized", "verified", "failed"] as const),
+    status: oneOf(o.status, ["pending", "initialized", "verified", "failed", "refunded"] as const),
     // Only ever navigate to an https Paystack checkout URL.
     authorizationUrl: url && /^https:\/\//.test(url) ? url : null,
     entitlementStatus: oneOf(o.entitlement_status, ["available", "consumed", "unavailable"] as const),
@@ -186,6 +189,7 @@ export type ReviewStatus = "pending" | "processing" | "completed" | "failed" | "
 export type Review = {
   id: string;
   resumeId: string | null;
+  paymentId: string | null;
   resumeName: string | null;
   status: ReviewStatus;
   overallScore: number | null;
@@ -259,6 +263,7 @@ export function toReview(raw: unknown): Review | null {
   return {
     id,
     resumeId: str(pick(o, "resume_id")) ?? resume?.id ?? null,
+    paymentId: str(o.payment_id),
     resumeName: resume?.fileName ?? str(pick(o, "resume_name", "file_name")),
     status: toStatus(str(o.status), overall !== null),
     overallScore: overall,

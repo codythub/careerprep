@@ -89,6 +89,17 @@ function Verify({ lookup }: { lookup: Lookup }) {
   const { payment, notPaid } = result.data;
   const resumeHref = payment.resumeId ? `/dashboard/resumes/${payment.resumeId}` : "/dashboard/resumes";
 
+  if (payment.status === "refunded") {
+    return (
+      <Shell icon={<XCircle className="size-6 text-amber-600" />} title="This payment was refunded" tone="warning">
+        <p>Our team refunded this payment, so it can&apos;t be used for a review. Contact support if you have questions.</p>
+        <div className="mt-6 flex justify-center">
+          <LinkButton href="/contact" variant="outline">Contact support</LinkButton>
+        </div>
+      </Shell>
+    );
+  }
+
   if (notPaid !== null || payment.status !== "verified") {
     return (
       <Shell icon={<XCircle className="size-6 text-rose-600" />} title="Payment not completed" tone="danger">

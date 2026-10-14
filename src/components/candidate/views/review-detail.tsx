@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Clock, Download, LifeBuoy, Loader2, XCircle } from "lucide-react";
 import { formatDateTime } from "@/lib/format";
+import { saveBlob } from "@/lib/download";
 import { api } from "@/lib/laravel/api";
 import { ApiError } from "@/lib/laravel/client";
 import type { Review } from "@/lib/laravel/types";
@@ -26,14 +27,7 @@ function DownloadReportButton({ reviewId }: { reviewId: string }) {
     setError(null);
     try {
       const { blob, fileName } = await api.downloadReview(state.token, reviewId);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      saveBlob(blob, fileName);
     } catch (err) {
       if (err instanceof ApiError && err.isUnauthorized) return handleUnauthorized();
       setError(err instanceof ApiError ? err.message : "Download failed. Please try again.");

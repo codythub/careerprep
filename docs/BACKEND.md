@@ -50,6 +50,27 @@ any non-production API:
 LARAVEL_LIVE_URL=http://127.0.0.1:8000 npx vitest run tests/laravel-live.test.ts
 ```
 
+## Admin area (`/admin`)
+
+Built against the Laravel "Admin API" section of `docs/FRONTEND_API.md`. The `/admin` pages only render for a session
+whose `GET /auth/user` returns `role: "admin"`. That check is UI only: Laravel re-checks the role on every admin request
+(401 without a token, 403 for candidates). Admins are created on the server with `php artisan careerprep:make-admin {email}`.
+
+| Screen | Endpoint(s) | Verified against a running Laravel |
+|---|---|---|
+| Overview (date range) | `GET /admin/stats?from&to` | Yes |
+| Users, user detail | `GET /admin/users?search&role`, `GET /admin/users/{id}` | Yes |
+| Payments, payment detail | `GET /admin/payments?status&reference&user_id&from&to`, `GET /admin/payments/{id}` | Yes |
+| Re-verify payment | `POST /admin/payments/{id}/reverify` (shows `meta.verified` and `provider_status`) | Only the 502 path (Paystack unreachable). A real Paystack check needs keys. |
+| Mark refunded | `POST /admin/payments/{id}/mark-refunded { note }`. Records a Paystack refund; moves no money. | Yes |
+| Reviews, review detail | `GET /admin/reviews?status&user_id&resume_id`, `GET /admin/reviews/{id}` | Yes |
+| Retry review (support override) | `POST /admin/reviews/{id}/retry { resume_id? }`, with staged progress | Yes |
+| Grant extra attempt | `POST /admin/reviews/{id}/grant-attempt` | Yes |
+| Resumes, resume detail, PDF download | `GET /admin/resumes?extraction_status&user_id`, `GET /admin/resumes/{id}`, `GET /admin/resumes/{id}/download` (audited) | Yes |
+| Audit log | `GET /admin/audit-log?action&actor_id` | Yes |
+
+Code: `src/lib/laravel/admin.ts` (client and normalisers), `src/components/admin/*` (shell, kit, views), `src/app/admin/*`.
+
 ## Missing backend contract
 
 These parts of the old Prisma-backed frontend have **no Laravel endpoint**. They were removed rather than faked.
@@ -57,7 +78,6 @@ Each needs a Laravel API before it can return.
 
 | Feature | Frontend today | What Laravel would need to provide |
 |---|---|---|
-| Admin panel (orders, users, payments, jobs, submissions, reports, testimonials, stories, guides, analytics, audit log, settings) | Removed; `/admin` returns 404 | An admin role on `users` plus admin-only endpoints, authorized server-side (policies/gates). Not just a frontend role check. |
 | Job board (`/jobs`, `/jobs/[slug]`, categories, apply tracking, reporting) | `/jobs` says the board isn't open; detail and category routes return 404 | Public job list/detail/category endpoints, report endpoint, apply-click endpoint |
 | Employer job submissions (`/employers/post-job`) | Asks employers to email support | Public submission endpoint (rate-limited, spam-protected) plus an admin review flow |
 | Success stories and testimonials | Home sections hidden; `/success-stories` shows its empty state | Public read endpoints for consented, approved records |

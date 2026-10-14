@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardList, FileText, LayoutDashboard, User } from "lucide-react";
+import { BarChart3, ClipboardList, CreditCard, FileText, LayoutDashboard, ScrollText, User, Users } from "lucide-react";
 import { cn } from "@/lib/format";
 
 // Icons are referenced by name: component functions can't cross the server→client boundary.
-const ICONS = { ClipboardList, FileText, LayoutDashboard, User };
+const ICONS = { BarChart3, ClipboardList, CreditCard, FileText, LayoutDashboard, ScrollText, User, Users };
 
 export type NavItem = { href: string; label: string; shortLabel?: string; icon: keyof typeof ICONS; exact?: boolean };
 
@@ -50,7 +50,7 @@ export function BottomTabs({ items, label }: { items: NavItem[]; label: string }
   const isActive = useIsActive();
   return (
     <nav aria-label={label} className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
-      <ul className="mx-auto grid max-w-md grid-cols-4">
+      <ul className="mx-auto grid max-w-lg" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
         {items.map((item) => {
           const active = isActive(item);
           const Icon = ICONS[item.icon];
@@ -60,7 +60,7 @@ export function BottomTabs({ items, label }: { items: NavItem[]; label: string }
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors",
+                  "flex h-16 flex-col items-center justify-center gap-1 truncate px-0.5 text-[11px] font-medium transition-colors",
                   active ? "text-brand-700" : "text-slate-500 hover:text-slate-900",
                 )}
               >

@@ -20,10 +20,10 @@ export function CandidateDashboardShell({ children }: { children: ReactNode }) {
   );
 }
 
-function Shell({ user, children }: { user: { name: string | null; email: string | null }; children: ReactNode }) {
+function Shell({ user, children }: { user: { name: string | null; email: string | null; role: "candidate" | "admin" }; children: ReactNode }) {
   const { signOut } = useCandidateAuth();
   return (
-    <AppShell nav={NAV} navLabel="Dashboard" user={{ name: user.name, email: user.email }} onSignOut={signOut}>
+    <AppShell nav={NAV} navLabel="Dashboard" user={{ name: user.name, email: user.email, role: user.role }} onSignOut={signOut}>
       {children}
     </AppShell>
   );

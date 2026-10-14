@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
-import { BookOpen, ChevronDown, LogOut, User } from "lucide-react";
+import { BookOpen, ChevronDown, LayoutDashboard, LogOut, ShieldCheck, User } from "lucide-react";
 import { cn } from "@/lib/format";
 
 function initials(name: string | null, email: string | null) {
@@ -15,7 +15,15 @@ function initials(name: string | null, email: string | null) {
  * Account disclosure menu: avatar button → name/email, profile, guides, sign out.
  * Closes on Escape (returning focus to the button), outside click and navigation.
  */
-export function UserMenu({ user, onSignOut }: { user: { name: string | null; email: string | null }; onSignOut: () => Promise<void> }) {
+export function UserMenu({
+  user,
+  onSignOut,
+  area = "candidate",
+}: {
+  user: { name: string | null; email: string | null; role?: "candidate" | "admin" };
+  onSignOut: () => Promise<void>;
+  area?: "candidate" | "admin";
+}) {
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -67,6 +75,20 @@ export function UserMenu({ user, onSignOut }: { user: { name: string | null; ema
             {user.email && <p className="truncate text-xs text-slate-500">{user.email}</p>}
           </div>
           <ul className="pt-1.5">
+            {/* Shown to admins only; Laravel still refuses admin API calls from anyone else. */}
+            {user.role === "admin" && (
+              <li>
+                {area === "admin" ? (
+                  <Link href="/dashboard" className={itemCls} onClick={() => setOpen(false)}>
+                    <LayoutDashboard className="size-4 text-slate-400" aria-hidden /> Candidate dashboard
+                  </Link>
+                ) : (
+                  <Link href="/admin" className={itemCls} onClick={() => setOpen(false)}>
+                    <ShieldCheck className="size-4 text-slate-400" aria-hidden /> Admin panel
+                  </Link>
+                )}
+              </li>
+            )}
             <li>
               <Link href="/dashboard/profile" className={itemCls} onClick={() => setOpen(false)}>
                 <User className="size-4 text-slate-400" aria-hidden /> Profile

@@ -18,9 +18,9 @@ comes from Laravel, called from the browser with the candidate's bearer token:
 - `src/components/candidate/`: auth provider and `/dashboard` guard, forms, and the dashboard views.
 - `src/content/guides.ts`: career guides (static content, prerendered).
 
-See **[`docs/BACKEND.md`](docs/BACKEND.md)** for the feature → endpoint map, which workflows have been verified
-against a running Laravel, and the backend contract that is still missing (admin, job board, employer submissions,
-stories/testimonials). Those features have no Laravel endpoint yet, so they are not shown with fake data. `/jobs`
+See **[`docs/BACKEND.md`](docs/BACKEND.md)** for the feature → endpoint map (candidate dashboard and the `/admin` area),
+which workflows have been verified against a running Laravel, and the backend contract that is still missing (job board,
+employer submissions, stories/testimonials). Features without a Laravel endpoint are not shown with fake data: `/jobs`
 and `/success-stories` say so plainly, and `/employers/post-job` asks employers to email.
 
 ## Environment variables
@@ -81,6 +81,7 @@ Laravel's CORS only allows `FRONTEND_URL`, so a Preview deployment can't call th
 | `src/app/(site)` | Public pages (home, resume review, guides, jobs notice, employers, legal) |
 | `src/app/(auth)` | Sign in and registration (Laravel) |
 | `src/app/dashboard` | Candidate dashboard: resumes, payment callback, reviews, profile (Laravel) |
+| `src/app/admin` | Admin area for staff with `role: admin` (Laravel Admin API; see `docs/BACKEND.md`) |
 | `src/lib/laravel` | API client: the only place endpoint paths are defined |
 | `src/lib/review-progress.ts` | Staged review-progress steps, tips and timing (used by Start review, payment callback and Retry) |
 | `src/components/ui` | Design-system primitives; tokens live in `src/app/globals.css` (`@theme`) |

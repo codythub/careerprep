@@ -37,6 +37,27 @@ export const ENDPOINTS = {
   reviewDownload: (id: string | number) => `/reviews/${encodeURIComponent(String(id))}/download`, // GET
 } as const;
 
+const seg = (id: string | number) => encodeURIComponent(String(id));
+
+/** Admin API (/api/v1/admin) — every route is admin-only on the server (401/403 otherwise). */
+export const ADMIN_ENDPOINTS = {
+  stats: "/admin/stats", // GET ?from&to (YYYY-MM-DD)
+  users: "/admin/users", // GET ?search&role&page
+  user: (id: string | number) => `/admin/users/${seg(id)}`, // GET (+ latest_resumes/payments/reviews)
+  resumes: "/admin/resumes", // GET ?user_id&extraction_status&page
+  resume: (id: string | number) => `/admin/resumes/${seg(id)}`, // GET
+  resumeDownload: (id: string | number) => `/admin/resumes/${seg(id)}/download`, // GET (PDF, audited)
+  payments: "/admin/payments", // GET ?status&reference&user_id&from&to&page
+  payment: (id: string | number) => `/admin/payments/${seg(id)}`, // GET
+  paymentReverify: (id: string | number) => `/admin/payments/${seg(id)}/reverify`, // POST
+  paymentMarkRefunded: (id: string | number) => `/admin/payments/${seg(id)}/mark-refunded`, // POST { note }
+  reviews: "/admin/reviews", // GET ?status&user_id&resume_id&page
+  review: (id: string | number) => `/admin/reviews/${seg(id)}`, // GET
+  reviewRetry: (id: string | number) => `/admin/reviews/${seg(id)}/retry`, // POST { resume_id? }
+  reviewGrantAttempt: (id: string | number) => `/admin/reviews/${seg(id)}/grant-attempt`, // POST
+  auditLog: "/admin/audit-log", // GET ?actor_id&action&page
+} as const;
+
 /** Multipart field name Laravel expects for the uploaded PDF. */
 export const RESUME_UPLOAD_FIELD = "resume";
 

@@ -114,12 +114,17 @@ export const api = {
   },
   /** GET /reviews/{review}/download — a plain-text report; Laravel names it in Content-Disposition. */
   async downloadReview(token: string, id: string): Promise<{ blob: Blob; fileName: string }> {
-    const res = await laravel<Response>(ENDPOINTS.reviewDownload(id), { token, raw: true });
-    const disposition = res.headers.get("content-disposition") ?? "";
-    const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
-    return { blob: await res.blob(), fileName: match ? decodeURIComponent(match[1]!) : `careerprep-review-${id}.txt` };
+    return fetchFile(token, ENDPOINTS.reviewDownload(id), `careerprep-review-${id}.txt`);
   },
 };
+
+/** Authenticated file download as a Blob, named from Content-Disposition (exposed through CORS). */
+export async function fetchFile(token: string, path: string, fallbackName: string): Promise<{ blob: Blob; fileName: string }> {
+  const res = await laravel<Response>(path, { token, raw: true });
+  const disposition = res.headers.get("content-disposition") ?? "";
+  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
+  return { blob: await res.blob(), fileName: match ? decodeURIComponent(match[1]!) : fallbackName };
+}
 
 /**
  * POST /resumes (multipart, field "resume") via XHR so the UI can show upload progress.

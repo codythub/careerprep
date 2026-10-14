@@ -50,7 +50,7 @@ const nextConfig: NextConfig = {
         ],
       },
       // Candidate data is fetched client-side from Laravel, so the dashboard HTML holds nothing private.
-      { source: "/dashboard/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
+      { source: "/(dashboard|admin)/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
     ];
   },
 };
